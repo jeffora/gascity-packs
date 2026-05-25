@@ -6,8 +6,8 @@ description: Turn an approved requirements/design pair into an approved bead pla
 # GC Decompose
 
 Use this skill after `gc.plan` and `gc.design` have approved artifacts. This is
-a planning and task-creation skill: it may write `tasks.md` and create beads,
-but it must not implement those beads.
+a planning and task-creation skill: it may write `tasks.md` and create convoys
+and runnable beads, but it must not implement those beads.
 
 ## Workflow
 
@@ -22,8 +22,8 @@ but it must not implement those beads.
 5. Interview the user one question at a time until the task plan is approved.
 6. When approved, update `status: approved`, run the bead creation script in
    dry-run mode, then run it for real if dry-run passes.
-7. After bead creation, ensure `tasks.md` records `status: created` and the
-   `## Created Beads` mapping.
+7. After creation, ensure `tasks.md` records `status: created` and the
+   `## Created Beads` mapping for both convoy heads and runnable beads.
 
 ## Artifact
 
@@ -51,7 +51,7 @@ Use this body structure:
 
 ## Summary
 
-## Epics
+## Convoys
 
 ## Beads
 
@@ -67,24 +67,35 @@ Use this body structure:
 target_rig: backend
 labels:
   - plan:example-slug
-epics: []
-beads:
-  - key: stable-local-key
-    title: Short imperative title
-    type: task
-    priority: 2
-    description: |
-      Full implementation instructions.
-    acceptance_criteria:
-      - Concrete done condition.
-    dependencies: []
-    files: []
-    verification: []
+convoys:
+  - key: implementation
+    title: Implement example
+    description: Owns implementation work for this plan.
+    target: feature/example
+    metadata:
+      gc.plan.phase: implementation
+    convoys: []
+    beads:
+      - key: stable-local-key
+        title: Short imperative title
+        type: task
+        priority: 2
+        description: |
+          Full implementation instructions.
+        acceptance_criteria:
+          - Concrete done condition.
+        dependencies: []
+        files: []
+        verification: []
 ```
 ````
 
-Create epic entries only when a larger outcome naturally groups three or more
-beads. Dependencies use local keys; the script resolves them to bead IDs.
+Use nested `convoys[]` for arbitrary groupings. Do not emit `epics[]`. A convoy
+is a bead-backed grouping object, not a blocking dependency mechanism; express
+blocking relationships against runnable children when they are precise.
+`convoys[].dependencies` is allowed as shorthand only when the downstream roots
+should depend on the upstream terminal runnable beads. Dependencies use local
+keys; the script resolves them to bead IDs.
 
 ## Bead Creation
 

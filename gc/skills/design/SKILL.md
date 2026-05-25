@@ -24,6 +24,9 @@ implement product/source changes.
 5. Write or overwrite `design.md`.
 6. Ask the user to review. When the user explicitly approves, update
    `status: approved`. Otherwise leave `status: draft` or `status: questions`.
+7. For build-compatible designs, include the implementation context that later
+   steps should carry forward. Build will turn those references into
+   `context.yaml` entries with `name`, `path`, and `description`.
 
 ## Artifact
 
@@ -63,4 +66,6 @@ Use this body structure:
 
 The design should be concrete enough for decomposition: name files/modules,
 interfaces, data flow, persistence, error handling, migration concerns, and
-verification strategy where relevant.
+verification strategy where relevant. When work should be implemented as a
+group, describe the grouping as a convoy boundary; do not introduce epics as a
+separate task type.

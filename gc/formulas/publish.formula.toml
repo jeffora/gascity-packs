@@ -1,0 +1,36 @@
+description = "Internal helper for explicit opt-in push and PR creation."
+formula = "publish"
+version = 1
+contract = "graph.v2"
+target_required = false
+internal = true
+
+[vars]
+[vars.final_report]
+description = "Final report path to publish from."
+required = true
+
+[vars.push]
+description = "Positive authorization to push."
+default = "false"
+
+[vars.open_pr]
+description = "Positive authorization to open a PR."
+default = "false"
+
+[[steps]]
+id = "preflight"
+title = "Run publish preflight"
+description = "Validate auth, token scope, remote, branch names, PR base, collision policy, protected/default targets, and sanitized metadata."
+
+[[steps]]
+id = "push"
+title = "Push branch if authorized"
+needs = ["preflight"]
+description = "Use create-if-absent or expected-object-id update only. Fail closed if the remote cannot enforce atomic or lease-checked semantics."
+
+[[steps]]
+id = "open-pr"
+title = "Open PR if authorized"
+needs = ["push"]
+description = "Create a PR only after push succeeds and sanitized title/body pass policy."

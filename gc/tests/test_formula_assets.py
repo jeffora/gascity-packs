@@ -6,46 +6,65 @@ import tomllib
 import unittest
 
 
+FORMULAS = {
+    "build-run",
+    "do-work",
+    "do-work-item",
+    "fix-convoy",
+    "gap-analysis",
+    "implement",
+    "publish",
+    "review",
+    "same-session-implement",
+}
+
+
 class FormulaAssetTests(unittest.TestCase):
-    def test_implement_formula_shape(self) -> None:
+    def test_expected_formula_set_is_convoy_first(self) -> None:
         root = pathlib.Path(__file__).resolve().parents[1]
-        path = root / "formulas" / "implement.formula.toml"
+        paths = sorted((root / "formulas").glob("*.formula.toml"))
 
-        data = tomllib.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual({path.name.removesuffix(".formula.toml") for path in paths}, FORMULAS)
+        for path in paths:
+            data = tomllib.loads(path.read_text(encoding="utf-8"))
+            name = path.name.removesuffix(".formula.toml")
+            self.assertEqual(data["formula"], name)
+            self.assertEqual(data["contract"], "graph.v2")
+            var_names = set(data.get("vars", {}))
+            self.assertNotIn("issue", var_names)
+            self.assertNotIn("bead_id", var_names)
+            self.assertNotIn("convoy_id", var_names, f"{path.name} must not redeclare reserved convoy_id")
 
-        self.assertEqual(data["formula"], "implement")
-        self.assertEqual(data["contract"], "graph.v2")
-        self.assertIn("pack_root", data["vars"])
-        self.assertTrue(data["vars"]["pack_root"]["required"])
+    def test_implement_formula_uses_core_drain_steps(self) -> None:
+        root = pathlib.Path(__file__).resolve().parents[1]
+        data = tomllib.loads((root / "formulas" / "implement.formula.toml").read_text(encoding="utf-8"))
 
         step_ids = [step["id"] for step in data["steps"]]
-        self.assertEqual(
-            step_ids,
-            [
-                "prepare",
-                "route-work",
-                "wait-for-work",
-                "prepare-gap-context",
-                "gap-analysis-loop",
-                "prepare-review-context",
-                "review-loop",
-                "finalize",
-                "optional-pr",
-            ],
-        )
+        self.assertEqual(step_ids, ["prepare", "drain-separate", "drain-same-session", "wait-for-drain", "summarize"])
 
-        gap_loop = data["steps"][4]
-        review_loop = data["steps"][6]
-        self.assertEqual(gap_loop["ralph"]["check"]["path"], "{{pack_root}}/scripts/checks/gap-analysis-approved.sh")
-        self.assertEqual(
-            review_loop["ralph"]["check"]["path"],
-            "{{pack_root}}/scripts/checks/implementation-review-approved.sh",
-        )
-        self.assertEqual([child["id"] for child in gap_loop["children"]], ["analyze-gaps", "apply-gap-fixes"])
-        self.assertEqual(
-            [child["id"] for child in review_loop["children"]],
-            ["review-implementation", "apply-review-fixes"],
-        )
+        separate = data["steps"][1]
+        same = data["steps"][2]
+        self.assertEqual(separate["condition"], "{{drain_policy}} == separate")
+        self.assertEqual(separate["drain"]["context"], "separate")
+        self.assertEqual(separate["drain"]["formula"], "do-work")
+        self.assertEqual(separate["drain"]["member_access"], "exclusive")
+        self.assertEqual(same["condition"], "{{drain_policy}} == same-session")
+        self.assertEqual(same["drain"]["context"], "shared")
+        self.assertEqual(same["drain"]["formula"], "do-work-item")
+        self.assertEqual(same["drain"]["member_access"], "exclusive")
+        self.assertTrue(same["drain"]["item"]["single_lane"])
+        self.assertEqual(same["drain"]["on_item_failure"], "skip_remaining")
+
+        helper = tomllib.loads((root / "formulas" / "same-session-implement.formula.toml").read_text(encoding="utf-8"))
+        self.assertEqual(helper["steps"][0]["drain"]["member_access"], "exclusive")
+
+    def test_report_formulas_are_targetless_and_report_only(self) -> None:
+        root = pathlib.Path(__file__).resolve().parents[1]
+        for name in ("gap-analysis", "review"):
+            data = tomllib.loads((root / "formulas" / f"{name}.formula.toml").read_text(encoding="utf-8"))
+            self.assertEqual(data["mode"], "report")
+            self.assertFalse(data["target_required"])
+            self.assertEqual([step["id"] for step in data["steps"]], ["validate-context", "write-report"])
 
     def test_check_scripts_are_executable_and_portable(self) -> None:
         root = pathlib.Path(__file__).resolve().parents[1]

@@ -1,0 +1,38 @@
+description = """
+Full lifecycle implementation formula for one implementation convoy or a core
+drain-unit convoy of size one.
+"""
+formula = "do-work"
+version = 1
+contract = "graph.v2"
+target_required = true
+
+[vars]
+[vars.context_path]
+description = "Optional context bundle path."
+default = ""
+
+[vars.summary_path]
+description = "Optional per-item summary path."
+default = ""
+
+[[steps]]
+id = "prepare-worktree"
+title = "Prepare item worktree"
+description = """
+Resolve reserved `convoy_id`. If this is a drain-unit convoy, read
+`gc.drain_member_id`; otherwise treat the whole convoy as the ownership
+boundary. Validate context, files ownership, and verification policy.
+"""
+
+[[steps]]
+id = "implement"
+title = "Implement owned work"
+needs = ["prepare-worktree"]
+description = "Implement only the owned convoy boundary, run sandboxed verification, and commit focused changes."
+
+[[steps]]
+id = "close-source-anchor"
+title = "Close owned source anchor"
+needs = ["implement"]
+description = "Write per-item summary and close only the owned source work anchor on success."

@@ -1,0 +1,32 @@
+description = "Internal helper that converts failed verdict reports into validated fix convoys."
+formula = "fix-convoy"
+version = 1
+contract = "graph.v2"
+target_required = true
+internal = true
+
+[vars]
+[vars.report_path]
+description = "Failed gap-analysis or review report path."
+required = true
+
+[vars.context_path]
+description = "Optional context bundle path."
+default = ""
+
+[[steps]]
+id = "synthesize-fix-plan"
+title = "Synthesize fix convoy payload"
+description = "Convert report findings into a convoy payload or explicit cannot-fix records. Do not create beads before validation passes."
+
+[[steps]]
+id = "validate-fix-plan"
+title = "Validate generated fix payload"
+needs = ["synthesize-fix-plan"]
+description = "Validate convoys, beads, files ownership, metadata namespaces, context, verification, and dependency graph."
+
+[[steps]]
+id = "create-fix-convoy"
+title = "Create fix convoy"
+needs = ["validate-fix-plan"]
+description = "Create or resume the deterministic fix convoy by run id, loop kind, iteration, report hash, finding hash, and original convoy id."

@@ -23,6 +23,8 @@ requirements document, but do not implement product/source changes.
 5. Write or overwrite `requirements.md`.
 6. Ask the user to review. When the user explicitly approves, update
    `status: approved`. Otherwise leave `status: draft` or `status: questions`.
+7. Keep context references concrete enough for build to carry forward later:
+   names, file paths, and short descriptions are sufficient.
 
 ## Artifact
 
@@ -59,4 +61,5 @@ Use this body structure:
 
 Each user story should include lightweight acceptance criteria, usually 2-5
 bullets. Capture technical constraints discovered from the repo, but do not
-make engineering design decisions here.
+make engineering design decisions here. Do not preselect bead IDs or formula
+targets in requirements; later graph.v2 formulas target convoys.

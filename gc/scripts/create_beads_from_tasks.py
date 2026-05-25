@@ -23,7 +23,7 @@ PAYLOAD_RE = re.compile(
 )
 CREATED_RE = re.compile(r"^## Created Beads\s*?\n.*?(?=^## |\Z)", re.MULTILINE | re.DOTALL)
 FRONT_MATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
-VALID_TYPES = {"feature", "bug", "task", "chore", "docs", "test", "epic"}
+VALID_TYPES = {"feature", "bug", "task", "chore", "docs", "test"}
 VALID_PRIORITIES = {"0", "1", "2", "3", "4", "P0", "P1", "P2", "P3", "P4"}
 
 
@@ -32,32 +32,45 @@ class PlanError(Exception):
 
 
 @dataclass
-class Item:
+class Runnable:
     key: str
     title: str
     type: str
     priority: str
     description: str
     acceptance_criteria: list[str]
+    parent_convoy: str
     dependencies: list[str] = field(default_factory=list)
     labels: list[str] = field(default_factory=list)
     files: list[str] = field(default_factory=list)
     verification: list[str] = field(default_factory=list)
     metadata: dict[str, str] = field(default_factory=dict)
-    epic: str = ""
-    is_epic: bool = False
+
+
+@dataclass
+class Convoy:
+    key: str
+    title: str
+    description: str
+    parent_convoy: str = ""
+    dependencies: list[str] = field(default_factory=list)
+    labels: list[str] = field(default_factory=list)
+    metadata: dict[str, str] = field(default_factory=dict)
+    target: str = ""
+    convoy_keys: list[str] = field(default_factory=list)
+    bead_keys: list[str] = field(default_factory=list)
 
 
 @dataclass
 class Plan:
     target_rig: str
     labels: list[str]
-    epics: list[Item]
-    beads: list[Item]
+    convoys: list[Convoy]
+    runnables: list[Runnable]
 
     @property
-    def items(self) -> list[Item]:
-        return [*self.epics, *self.beads]
+    def items(self) -> list[Convoy | Runnable]:
+        return [*self.convoys, *self.runnables]
 
 
 class Runner:
@@ -65,16 +78,29 @@ class Runner:
         self.city = city
         self.rig = rig
         self.dry_run = dry_run
+        self.seeded_convoy_members: dict[str, str] = {}
 
-    def base(self) -> list[str]:
+    def bd_base(self) -> list[str]:
         cmd = ["gc", "bd"]
         if self.city:
             cmd.extend(["--city", self.city])
         cmd.extend(["--rig", self.rig])
         return cmd
 
-    def run(self, args: list[str]) -> str:
-        cmd = [*self.base(), *args]
+    def convoy_base(self) -> list[str]:
+        cmd = ["gc", "convoy"]
+        if self.city:
+            cmd.extend(["--city", self.city])
+        cmd.extend(["--rig", self.rig])
+        return cmd
+
+    def run_bd(self, args: list[str]) -> str:
+        return self.run([*self.bd_base(), *args])
+
+    def run_convoy(self, args: list[str]) -> str:
+        return self.run([*self.convoy_base(), *args])
+
+    def run(self, cmd: list[str]) -> str:
         if self.dry_run:
             print(shell_join(cmd))
             return ""
@@ -136,54 +162,148 @@ def metadata_map(value: Any, field_name: str) -> dict[str, str]:
     return out
 
 
-def parse_item(raw: Any, index: int, *, is_epic: bool) -> Item:
-    name = f"{'epics' if is_epic else 'beads'}[{index}]"
+def required_string(raw: dict[str, Any], field_name: str, item_name: str) -> str:
+    value = raw.get(field_name)
+    if not isinstance(value, str) or not value.strip():
+        raise PlanError(f"{item_name}: missing required string field {field_name}")
+    return value.strip()
+
+
+def parse_runnable(
+    raw: Any,
+    index: int,
+    *,
+    parent_convoy: str,
+    inherited_labels: list[str],
+    inherited_metadata: dict[str, str],
+) -> Runnable:
+    name = f"beads[{index}]"
     if not isinstance(raw, dict):
         raise PlanError(f"{name} must be a mapping")
-    for field_name in ("key", "title", "description"):
-        if not isinstance(raw.get(field_name), str) or not raw[field_name].strip():
-            raise PlanError(f"{name}: missing required string field {field_name}")
-    key = raw["key"].strip()
-    item_type = "epic" if is_epic else str(raw.get("type", "")).strip()
+    key = required_string(raw, "key", name)
+    item_type = str(raw.get("type", "")).strip()
     if item_type not in VALID_TYPES:
         raise PlanError(f"{key}: unsupported type {item_type!r}")
     priority = str(raw.get("priority", "2")).strip()
     if priority not in VALID_PRIORITIES:
         raise PlanError(f"{key}: priority must be 0-4 or P0-P4")
-    return Item(
+    metadata = {**inherited_metadata, **metadata_map(raw.get("metadata"), f"{key}.metadata")}
+    return Runnable(
         key=key,
-        title=raw["title"].strip(),
+        title=required_string(raw, "title", key),
         type=item_type,
         priority=priority,
-        description=raw["description"].strip(),
+        description=required_string(raw, "description", key),
         acceptance_criteria=string_list(raw.get("acceptance_criteria"), f"{key}.acceptance_criteria"),
+        parent_convoy=parent_convoy,
         dependencies=string_list(raw.get("dependencies"), f"{key}.dependencies"),
-        labels=string_list(raw.get("labels"), f"{key}.labels"),
+        labels=[*inherited_labels, *string_list(raw.get("labels"), f"{key}.labels")],
         files=string_list(raw.get("files"), f"{key}.files"),
         verification=string_list(raw.get("verification"), f"{key}.verification"),
-        metadata=metadata_map(raw.get("metadata"), f"{key}.metadata"),
-        epic=str(raw.get("epic", "")).strip(),
-        is_epic=is_epic,
+        metadata=metadata,
     )
+
+
+def parse_convoy(
+    raw: Any,
+    index: int,
+    *,
+    parent_convoy: str,
+    plan: Plan,
+    inherited_labels: list[str],
+    inherited_metadata: dict[str, str],
+    inherited_target: str,
+) -> None:
+    name = f"convoys[{index}]"
+    if not isinstance(raw, dict):
+        raise PlanError(f"{name} must be a mapping")
+    key = required_string(raw, "key", name)
+    labels = [*inherited_labels, *string_list(raw.get("labels"), f"{key}.labels")]
+    metadata = {**inherited_metadata, **metadata_map(raw.get("metadata"), f"{key}.metadata")}
+    target = str(raw.get("target", inherited_target)).strip()
+    convoy = Convoy(
+        key=key,
+        title=required_string(raw, "title", key),
+        description=required_string(raw, "description", key),
+        parent_convoy=parent_convoy,
+        dependencies=string_list(raw.get("dependencies"), f"{key}.dependencies"),
+        labels=labels,
+        metadata=metadata,
+        target=target,
+    )
+    plan.convoys.append(convoy)
+
+    for child_index, child in enumerate(raw.get("convoys") or []):
+        if not isinstance(child, dict):
+            raise PlanError(f"{key}.convoys[{child_index}] must be a mapping")
+        child_key = required_string(child, "key", f"{key}.convoys[{child_index}]")
+        parse_convoy(
+            child,
+            child_index,
+            parent_convoy=key,
+            plan=plan,
+            inherited_labels=labels,
+            inherited_metadata=metadata,
+            inherited_target=target,
+        )
+        convoy.convoy_keys.append(child_key)
+
+    raw_beads = raw.get("beads") or []
+    if not isinstance(raw_beads, list):
+        raise PlanError(f"{key}.beads must be a list")
+    for bead_index, bead in enumerate(raw_beads):
+        runnable = parse_runnable(
+            bead,
+            bead_index,
+            parent_convoy=key,
+            inherited_labels=labels,
+            inherited_metadata=metadata,
+        )
+        plan.runnables.append(runnable)
+        convoy.bead_keys.append(runnable.key)
 
 
 def parse_plan(payload: dict[str, Any]) -> Plan:
     target_rig = str(payload.get("target_rig", "")).strip()
     if not target_rig:
         raise PlanError("target_rig is required")
-    raw_epics = payload.get("epics") or []
+    if "epics" in payload:
+        raise PlanError("epics[] is not supported; use nested convoys[]")
+    raw_convoys = payload.get("convoys") or []
     raw_beads = payload.get("beads") or []
-    if not isinstance(raw_epics, list):
-        raise PlanError("epics must be a list")
-    if not isinstance(raw_beads, list) or not raw_beads:
-        raise PlanError("beads must be a non-empty list")
-    plan = Plan(
-        target_rig=target_rig,
-        labels=string_list(payload.get("labels"), "labels"),
-        epics=[parse_item(raw, i, is_epic=True) for i, raw in enumerate(raw_epics)],
-        beads=[parse_item(raw, i, is_epic=False) for i, raw in enumerate(raw_beads)],
-    )
-    by_key: dict[str, Item] = {}
+    if not isinstance(raw_convoys, list):
+        raise PlanError("convoys must be a list")
+    if not isinstance(raw_beads, list):
+        raise PlanError("beads must be a list")
+    plan = Plan(target_rig=target_rig, labels=string_list(payload.get("labels"), "labels"), convoys=[], runnables=[])
+    for index, raw in enumerate(raw_convoys):
+        parse_convoy(
+            raw,
+            index,
+            parent_convoy="",
+            plan=plan,
+            inherited_labels=plan.labels,
+            inherited_metadata={},
+            inherited_target="",
+        )
+    for index, raw in enumerate(raw_beads):
+        plan.runnables.append(
+            parse_runnable(
+                raw,
+                index,
+                parent_convoy="",
+                inherited_labels=plan.labels,
+                inherited_metadata={},
+            )
+        )
+    if not plan.runnables:
+        raise PlanError("beads must contain at least one runnable item, directly or inside convoys")
+    validate_plan(plan)
+    return plan
+
+
+def validate_plan(plan: Plan) -> None:
+    by_key: dict[str, Convoy | Runnable] = {}
     for item in plan.items:
         if item.key in by_key:
             raise PlanError(f"duplicate key {item.key!r}")
@@ -192,19 +312,87 @@ def parse_plan(payload: dict[str, Any]) -> Plan:
         for dep in item.dependencies:
             if dep not in by_key:
                 raise PlanError(f"{item.key}: unknown dependency {dep!r}")
-        if item.epic:
-            if item.epic not in by_key:
-                raise PlanError(f"{item.key}: unknown epic {item.epic!r}")
-            if not by_key[item.epic].is_epic:
-                raise PlanError(f"{item.key}: epic {item.epic!r} is not an epic item")
-    return plan
+    for convoy in plan.convoys:
+        if not convoy.convoy_keys and not convoy.bead_keys:
+            raise PlanError(f"{convoy.key}: convoy must contain at least one bead or nested convoy")
+    topo_order(plan.runnables, expanded_dependency_edges(plan))
 
 
-def topo_order(items: list[Item]) -> list[Item]:
+def descendants(plan: Plan, convoy_key: str) -> set[str]:
+    result: set[str] = set()
+    for convoy in plan.convoys:
+        if convoy.parent_convoy == convoy_key:
+            result.add(convoy.key)
+            result.update(descendants(plan, convoy.key))
+    for runnable in plan.runnables:
+        if runnable.parent_convoy == convoy_key:
+            result.add(runnable.key)
+    return result
+
+
+def runnable_descendants(plan: Plan, key: str) -> list[str]:
+    item = item_map(plan)[key]
+    if isinstance(item, Runnable):
+        return [key]
+    nested = descendants(plan, key)
+    return [runnable.key for runnable in plan.runnables if runnable.key in nested]
+
+
+def root_runnables(plan: Plan, key: str) -> list[str]:
+    runnable_keys = set(runnable_descendants(plan, key))
+    edges = explicit_runnable_edges(plan)
+    blocked = {child for child, dep in edges if child in runnable_keys and dep in runnable_keys}
+    return [runnable.key for runnable in plan.runnables if runnable.key in runnable_keys and runnable.key not in blocked]
+
+
+def terminal_runnables(plan: Plan, key: str) -> list[str]:
+    runnable_keys = set(runnable_descendants(plan, key))
+    edges = explicit_runnable_edges(plan)
+    predecessors = {dep for child, dep in edges if child in runnable_keys and dep in runnable_keys}
+    return [runnable.key for runnable in plan.runnables if runnable.key in runnable_keys and runnable.key not in predecessors]
+
+
+def item_map(plan: Plan) -> dict[str, Convoy | Runnable]:
+    return {item.key: item for item in plan.items}
+
+
+def explicit_runnable_edges(plan: Plan) -> set[tuple[str, str]]:
+    by_key = item_map(plan)
+    edges: set[tuple[str, str]] = set()
+    for runnable in plan.runnables:
+        for dep in runnable.dependencies:
+            dep_item = by_key[dep]
+            if isinstance(dep_item, Runnable):
+                edges.add((runnable.key, dep))
+    return edges
+
+
+def expanded_dependency_edges(plan: Plan) -> set[tuple[str, str]]:
+    by_key = item_map(plan)
+    edges = explicit_runnable_edges(plan)
+
+    def add_expanded(dependent_key: str, dependency_key: str) -> None:
+        dependent = by_key[dependent_key]
+        dependency = by_key[dependency_key]
+        dependent_roots = [dependent.key] if isinstance(dependent, Runnable) else root_runnables(plan, dependent.key)
+        dependency_terms = [dependency.key] if isinstance(dependency, Runnable) else terminal_runnables(plan, dependency.key)
+        for child in dependent_roots:
+            for dep in dependency_terms:
+                if child != dep:
+                    edges.add((child, dep))
+
+    for item in plan.items:
+        for dep in item.dependencies:
+            add_expanded(item.key, dep)
+    return edges
+
+
+def topo_order(items: list[Runnable], edges: set[tuple[str, str]] | None = None) -> list[Runnable]:
     by_key = {item.key: item for item in items}
-    ordered: list[Item] = []
+    ordered: list[Runnable] = []
     temporary: set[str] = set()
     permanent: set[str] = set()
+    edges = edges or explicit_edges_for_items(items)
 
     def visit(key: str) -> None:
         if key in permanent:
@@ -212,8 +400,9 @@ def topo_order(items: list[Item]) -> list[Item]:
         if key in temporary:
             raise PlanError(f"dependency cycle involving {key!r}")
         temporary.add(key)
-        for dep in by_key[key].dependencies:
-            visit(dep)
+        for child, dep in sorted(edges):
+            if child == key and dep in by_key:
+                visit(dep)
         temporary.remove(key)
         permanent.add(key)
         ordered.append(by_key[key])
@@ -221,6 +410,11 @@ def topo_order(items: list[Item]) -> list[Item]:
     for item in items:
         visit(item.key)
     return ordered
+
+
+def explicit_edges_for_items(items: list[Runnable]) -> set[tuple[str, str]]:
+    keys = {item.key for item in items}
+    return {(item.key, dep) for item in items for dep in item.dependencies if dep in keys}
 
 
 def front_matter_status(markdown: str) -> str:
@@ -258,26 +452,31 @@ def parse_created_mappings(markdown: str) -> dict[str, str]:
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
         if len(cells) < 2 or cells[0] in {"Key", "---"}:
             continue
-        if cells[0] and cells[1]:
+        if len(cells) >= 4 and cells[0] and cells[2]:
+            mappings[cells[0]] = cells[2]
+        elif len(cells) >= 2 and cells[0] and cells[1]:
             mappings[cells[0]] = cells[1]
     return mappings
 
 
-def render_created_section(items: list[Item], mappings: dict[str, str]) -> str:
-    titles = {item.key: item.title for item in items}
+def render_created_section(plan: Plan, mappings: dict[str, str]) -> str:
+    titles = {item.key: item.title for item in plan.items}
+    kinds = {convoy.key: "convoy" for convoy in plan.convoys}
+    kinds.update({runnable.key: "bead" for runnable in plan.runnables})
+    ordered_keys = [item.key for item in [*plan.convoys, *plan.runnables] if item.key in mappings]
     lines = [
         "## Created Beads",
         "",
-        "| Key | Bead ID | Title |",
-        "|---|---|---|",
+        "| Key | Kind | Bead ID | Title |",
+        "|---|---|---|---|",
     ]
-    for key in sorted(mappings):
-        lines.append(f"| {key} | {mappings[key]} | {titles.get(key, '')} |")
+    for key in ordered_keys:
+        lines.append(f"| {key} | {kinds[key]} | {mappings[key]} | {titles.get(key, '')} |")
     return "\n".join(lines) + "\n"
 
 
-def update_created_section(markdown: str, items: list[Item], mappings: dict[str, str], status: str) -> str:
-    section = render_created_section(items, mappings)
+def update_created_section(markdown: str, plan: Plan, mappings: dict[str, str], status: str) -> str:
+    section = render_created_section(plan, mappings)
     if CREATED_RE.search(markdown):
         markdown = CREATED_RE.sub(section, markdown)
     else:
@@ -289,7 +488,7 @@ def update_created_section(markdown: str, items: list[Item], mappings: dict[str,
     return update_front_matter(markdown, updates)
 
 
-def build_description(item: Item) -> str:
+def build_description(item: Runnable) -> str:
     parts = [item.description]
     if item.files:
         parts.append("Suggested files/modules:\n" + "\n".join(f"- {path}" for path in item.files))
@@ -302,18 +501,25 @@ def parse_create_output(output: str) -> str:
     start = output.find("{")
     if start < 0:
         raise PlanError(f"create output did not contain JSON: {output!r}")
-    data = json.loads(output[start:])
-    bead_id = str(data.get("id", "")).strip()
+    try:
+        data, _ = json.JSONDecoder().raw_decode(output[start:])
+    except json.JSONDecodeError as exc:
+        raise PlanError(f"create output did not contain valid JSON: {output!r}") from exc
+    if not isinstance(data, dict):
+        raise PlanError(f"create JSON was not an object: {output!r}")
+    bead_id = str(data.get("id") or data.get("bead_id") or data.get("convoy_id") or "").strip()
     if not bead_id:
         raise PlanError(f"create JSON missing id: {output!r}")
     return bead_id
 
 
-def create_item(runner: Runner, item: Item, plan_labels: list[str], mappings: dict[str, str]) -> str:
+def create_runnable(runner: Runner, item: Runnable, mappings: dict[str, str]) -> str:
     if item.key in mappings:
-        runner.run(["show", mappings[item.key], "--json"])
+        runner.run_bd(["show", mappings[item.key], "--json"])
         return mappings[item.key]
-    metadata = {"gc.plan.key": item.key}
+    metadata = {"gc.plan.key": item.key, "gc.plan.kind": "bead"}
+    if item.parent_convoy:
+        metadata["gc.plan.parent_convoy"] = item.parent_convoy
     metadata.update(item.metadata)
     args = [
         "create",
@@ -330,12 +536,9 @@ def create_item(runner: Runner, item: Item, plan_labels: list[str], mappings: di
         "--metadata",
         json.dumps(metadata, sort_keys=True),
     ]
-    labels = [*plan_labels, *item.labels]
-    if labels:
-        args.extend(["--labels", ",".join(labels)])
-    if item.epic and item.epic in mappings:
-        args.extend(["--parent", mappings[item.epic]])
-    output = runner.run(args)
+    if item.labels:
+        args.extend(["--labels", ",".join(dict.fromkeys(item.labels))])
+    output = runner.run_bd(args)
     if runner.dry_run:
         return f"<{item.key}>"
     bead_id = parse_create_output(output)
@@ -343,8 +546,51 @@ def create_item(runner: Runner, item: Item, plan_labels: list[str], mappings: di
     return bead_id
 
 
+def create_convoy(runner: Runner, convoy: Convoy, mappings: dict[str, str]) -> str:
+    if convoy.key in mappings:
+        runner.run_bd(["show", mappings[convoy.key], "--json"])
+        update_convoy_metadata(runner, convoy, mappings[convoy.key])
+        return mappings[convoy.key]
+    member_keys = [*convoy.convoy_keys, *convoy.bead_keys]
+    if not member_keys:
+        raise PlanError(f"{convoy.key}: convoy must contain at least one bead or nested convoy")
+    args = ["create", "--json"]
+    if convoy.target:
+        args.extend(["--target", convoy.target])
+    args.append(convoy.title)
+    seed_key = member_keys[0]
+    args.append(mappings[seed_key])
+    output = runner.run_convoy(args)
+    convoy_id = f"<{convoy.key}>" if runner.dry_run else parse_create_output(output)
+    mappings[convoy.key] = convoy_id
+    runner.seeded_convoy_members[convoy.key] = seed_key
+    update_convoy_metadata(runner, convoy, convoy_id)
+    return convoy_id
+
+
+def update_convoy_metadata(runner: Runner, convoy: Convoy, convoy_id: str) -> None:
+    metadata = {
+        "gc.plan.key": convoy.key,
+        "gc.plan.kind": "convoy",
+        **convoy.metadata,
+    }
+    if convoy.parent_convoy:
+        metadata["gc.plan.parent_convoy"] = convoy.parent_convoy
+    runner.run_bd(["update", convoy_id, "--metadata", json.dumps(metadata, sort_keys=True)])
+
+
+def link_memberships(runner: Runner, plan: Plan, mappings: dict[str, str]) -> None:
+    for convoy in plan.convoys:
+        convoy_id = mappings[convoy.key]
+        seeded_key = runner.seeded_convoy_members.get(convoy.key)
+        for key in [*convoy.convoy_keys, *convoy.bead_keys]:
+            if key == seeded_key:
+                continue
+            runner.run_convoy(["add", convoy_id, mappings[key]])
+
+
 def dependency_exists(runner: Runner, issue_id: str, depends_on_id: str) -> bool:
-    output = runner.run(["dep", "list", issue_id, "--json", "--direction=up"])
+    output = runner.run_bd(["dep", "list", issue_id, "--json"])
     if runner.dry_run:
         return False
     try:
@@ -353,17 +599,23 @@ def dependency_exists(runner: Runner, issue_id: str, depends_on_id: str) -> bool
         return False
     if not isinstance(deps, list):
         return False
-    return any(isinstance(dep, dict) and str(dep.get("depends_on_id", "")) == depends_on_id for dep in deps)
+    for dep in deps:
+        if not isinstance(dep, dict):
+            continue
+        dep_id = str(dep.get("depends_on_id") or dep.get("id") or "").strip()
+        dep_type = str(dep.get("type") or dep.get("dependency_type") or "blocks").strip()
+        if dep_id == depends_on_id and dep_type == "blocks":
+            return True
+    return False
 
 
-def add_dependencies(runner: Runner, items: list[Item], mappings: dict[str, str]) -> None:
-    for item in items:
-        issue_id = mappings[item.key]
-        for dep_key in item.dependencies:
-            depends_on_id = mappings[dep_key]
-            if dependency_exists(runner, issue_id, depends_on_id):
-                continue
-            runner.run(["dep", "add", issue_id, depends_on_id])
+def add_dependencies(runner: Runner, plan: Plan, mappings: dict[str, str]) -> None:
+    for child_key, dep_key in sorted(expanded_dependency_edges(plan)):
+        issue_id = mappings[child_key]
+        depends_on_id = mappings[dep_key]
+        if dependency_exists(runner, issue_id, depends_on_id):
+            continue
+        runner.run_bd(["dep", "add", issue_id, depends_on_id])
 
 
 def create_from_tasks(path: Path, *, city: str | None, dry_run: bool, force: bool) -> int:
@@ -371,31 +623,34 @@ def create_from_tasks(path: Path, *, city: str | None, dry_run: bool, force: boo
     if front_matter_status(markdown) == "created" and not force:
         raise PlanError("tasks.md already has status: created; pass --force to rerun")
     plan = parse_plan(extract_payload(markdown))
-    ordered = topo_order(plan.items)
+    ordered_runnables = topo_order(plan.runnables, expanded_dependency_edges(plan))
     mappings = parse_created_mappings(markdown)
     runner = Runner(city, plan.target_rig, dry_run)
 
     if dry_run:
         print(f"# target rig: {plan.target_rig}")
     try:
-        for item in ordered:
-            mappings.setdefault(item.key, create_item(runner, item, plan.labels, mappings))
-        add_dependencies(runner, ordered, mappings)
+        for item in ordered_runnables:
+            mappings.setdefault(item.key, create_runnable(runner, item, mappings))
+        for convoy in reversed(plan.convoys):
+            mappings.setdefault(convoy.key, create_convoy(runner, convoy, mappings))
+        link_memberships(runner, plan, mappings)
+        add_dependencies(runner, plan, mappings)
     except PlanError:
         if not dry_run and mappings:
-            path.write_text(update_created_section(markdown, ordered, mappings, "partial"), encoding="utf-8")
+            path.write_text(update_created_section(markdown, plan, mappings, "partial"), encoding="utf-8")
         raise
 
     if not dry_run:
-        path.write_text(update_created_section(markdown, ordered, mappings, "created"), encoding="utf-8")
+        path.write_text(update_created_section(markdown, plan, mappings, "created"), encoding="utf-8")
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Create Gas City beads from a gc.decompose tasks.md file")
+    parser = argparse.ArgumentParser(description="Create Gas City beads and convoys from a gc.decompose tasks.md file")
     parser.add_argument("tasks_md", help="Path to tasks.md")
-    parser.add_argument("--city", help="Optional city path/name passed through to gc bd")
-    parser.add_argument("--dry-run", action="store_true", help="Validate and print gc bd commands without creating beads")
+    parser.add_argument("--city", help="Optional city path/name passed through to gc")
+    parser.add_argument("--dry-run", action="store_true", help="Validate and print gc commands without creating beads")
     parser.add_argument("--force", action="store_true", help="Allow rerun when tasks.md status is created")
     args = parser.parse_args(argv)
     try:

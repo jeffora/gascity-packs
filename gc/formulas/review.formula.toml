@@ -1,0 +1,30 @@
+description = "Report-only implementation review over a diff, branch, or artifact set."
+formula = "review"
+version = 1
+contract = "graph.v2"
+target_required = false
+mode = "report"
+
+[vars]
+[vars.context_path]
+description = "Optional context bundle path."
+default = ""
+
+[vars.subject_path]
+description = "Diff, summary, branch note, or artifact path to review."
+required = true
+
+[vars.report_path]
+description = "Path to write the review report."
+required = true
+
+[[steps]]
+id = "validate-context"
+title = "Validate report context"
+description = "Validate optional context bundle and subject path. This formula is report-only and must not mutate beads, branches, or source files."
+
+[[steps]]
+id = "write-report"
+title = "Write review report"
+needs = ["validate-context"]
+description = "Write a verdict report with pass/fail, findings, missing evidence, and recommended fixes."

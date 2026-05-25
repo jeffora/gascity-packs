@@ -1,0 +1,60 @@
+description = "Durable back half for the build skill: implement, analyze gaps, review, fix, and optionally publish."
+formula = "build-run"
+version = 1
+contract = "graph.v2"
+target_required = true
+internal = true
+
+[vars]
+[vars.artifact_root]
+description = "Build artifact root."
+required = true
+
+[vars.context_path]
+description = "Implementation context bundle path."
+default = ""
+
+[vars.drain_policy]
+description = "Implementation drain policy inherited by fix convoys."
+default = "separate"
+
+[vars.max_iterations]
+description = "Maximum attempts per gap/review loop."
+default = "10"
+
+[vars.push]
+description = "Set true to allow final publish push after all loops pass."
+default = "false"
+
+[vars.open_pr]
+description = "Set true to allow final PR creation after all loops pass."
+default = "false"
+
+[[steps]]
+id = "implement-initial"
+title = "Implement initial convoy"
+description = "Run implement on the approved initial convoy. Stop and write final-report.md if implementation fails."
+
+[[steps]]
+id = "gap-loop"
+title = "Run gap-analysis fix loop"
+needs = ["implement-initial"]
+description = "Run gap-analysis. On failed verdict, create a fix convoy and run implement until pass or max_iterations is exhausted."
+
+[[steps]]
+id = "review-loop"
+title = "Run implementation review fix loop"
+needs = ["gap-loop"]
+description = "Run review. On failed verdict, create a fix convoy and run implement until pass or max_iterations is exhausted."
+
+[[steps]]
+id = "finalize"
+title = "Write final report"
+needs = ["review-loop"]
+description = "Write final-report.md for success, failure, timeout, unavailable prerequisites, or recovery-required states."
+
+[[steps]]
+id = "publish"
+title = "Optionally publish successful build"
+needs = ["finalize"]
+description = "If push/open_pr are explicit opt-ins and final report passed, run publish."

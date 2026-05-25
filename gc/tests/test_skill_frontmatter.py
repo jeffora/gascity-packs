@@ -10,7 +10,10 @@ class SkillFrontmatterTests(unittest.TestCase):
         root = pathlib.Path(__file__).resolve().parents[1]
         skill_files = sorted(root.glob("skills/*/SKILL.md"))
 
-        self.assertEqual([path.parent.name for path in skill_files], ["decompose", "design", "plan"])
+        self.assertEqual(
+            [path.parent.name for path in skill_files],
+            ["build", "decompose", "design", "gap-analysis", "implement", "plan", "review"],
+        )
         for path in skill_files:
             text = path.read_text(encoding="utf-8")
             match = re.match(r"\A---\n(?P<body>.*?)\n---\n", text, re.DOTALL)

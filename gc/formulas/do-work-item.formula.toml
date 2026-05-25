@@ -1,0 +1,24 @@
+description = """
+Single-lane item implementation formula used only inside core shared drain.
+"""
+formula = "do-work-item"
+version = 1
+contract = "graph.v2"
+target_required = true
+internal = true
+single_lane = true
+
+[vars]
+[vars.context_path]
+description = "Optional context bundle path."
+default = ""
+
+[[steps]]
+id = "implement-item"
+title = "Implement shared-drain item"
+description = """
+Run inside an existing shared worktree lifecycle. Resolve reserved `convoy_id`,
+read `gc.drain_member_id` and `gc.drain_item_index`, validate ownership and
+verification policy, implement the item, write an item summary, and close only
+the source anchor on success.
+"""
