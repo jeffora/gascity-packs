@@ -1,4 +1,10 @@
-description = "Internal helper that converts failed verdict reports into validated fix convoys."
+description = """
+Internal helper that converts failed verdict reports into validated fix convoys.
+
+Launch inputs:
+- report_path: {{report_path}}
+- context_path: {{context_path}} (empty means no extra context bundle)
+"""
 formula = "fix-convoy"
 version = 1
 contract = "graph.v2"
@@ -17,16 +23,26 @@ default = ""
 [[steps]]
 id = "synthesize-fix-plan"
 title = "Synthesize fix convoy payload"
-description = "Convert report findings into a convoy payload or explicit cannot-fix records. Do not create beads before validation passes."
+description = """
+Convert findings from report path {{report_path}} into a convoy payload or
+explicit cannot-fix records. Include context path {{context_path}} when set. Do
+not create beads before validation passes.
+"""
 
 [[steps]]
 id = "validate-fix-plan"
 title = "Validate generated fix payload"
 needs = ["synthesize-fix-plan"]
-description = "Validate convoys, beads, files ownership, metadata namespaces, context, verification, and dependency graph."
+description = """
+Validate convoys, beads, files ownership, metadata namespaces, context path
+{{context_path}}, verification, and dependency graph.
+"""
 
 [[steps]]
 id = "create-fix-convoy"
 title = "Create fix convoy"
 needs = ["validate-fix-plan"]
-description = "Create or resume the deterministic fix convoy by run id, loop kind, iteration, report hash, finding hash, and original convoy id."
+description = """
+Create or resume the deterministic fix convoy by run id, loop kind, iteration,
+report hash for {{report_path}}, finding hash, and original convoy id.
+"""

@@ -87,6 +87,15 @@ class FormulaAssetTests(unittest.TestCase):
                 self.assertIn("{{pack_root}}/assets/scripts/github_api.py", text)
                 self.assertNotIn("{{pack_root}}" + "/scripts/", text)
 
+    def test_all_declared_formula_vars_are_rendered_into_graph_text(self) -> None:
+        root = pathlib.Path(__file__).resolve().parents[1]
+        for path in sorted((root / "formulas").glob("*.formula.toml")):
+            data = tomllib.loads(path.read_text(encoding="utf-8"))
+            text = path.read_text(encoding="utf-8")
+            for var_name in data.get("vars", {}):
+                with self.subTest(formula=path.name, var=var_name):
+                    self.assertIn(f"{{{{{var_name}}}}}", text)
+
     def test_check_scripts_are_executable_and_portable(self) -> None:
         root = pathlib.Path(__file__).resolve().parents[1]
         scripts = sorted((root / "assets" / "scripts" / "checks").glob("*.sh"))

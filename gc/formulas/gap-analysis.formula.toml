@@ -1,4 +1,11 @@
-description = "Report-only gap analysis over implementation artifacts."
+description = """
+Report-only gap analysis over implementation artifacts.
+
+Launch inputs:
+- context_path: {{context_path}} (empty means no extra context bundle)
+- subject_path: {{subject_path}}
+- report_path: {{report_path}}
+"""
 formula = "gap-analysis"
 version = 1
 contract = "graph.v2"
@@ -21,10 +28,17 @@ required = true
 [[steps]]
 id = "validate-context"
 title = "Validate report context"
-description = "Validate optional context bundle and subject path. This formula is report-only and must not mutate beads, branches, or source files."
+description = """
+Validate optional context bundle {{context_path}} and subject path
+{{subject_path}}. This formula is report-only and must not mutate beads,
+branches, or source files.
+"""
 
 [[steps]]
 id = "write-report"
 title = "Write gap-analysis report"
 needs = ["validate-context"]
-description = "Write a verdict report with pass/fail, findings, missing evidence, and recommended fixes."
+description = """
+Write the gap-analysis verdict report to {{report_path}} with pass/fail,
+findings, missing evidence, and recommended fixes for subject {{subject_path}}.
+"""

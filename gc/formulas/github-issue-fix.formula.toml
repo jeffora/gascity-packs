@@ -7,6 +7,13 @@ artifacts and launches the existing generic build flow only for triage outcomes
 that authorize work. It keeps one sticky issue-fix status comment and may open
 or update a draft/ready PR only after implementation, gap-analysis, and review
 all pass. V0 never merges.
+
+Launch inputs:
+- github_issue_url: {{github_issue_url}}
+- artifact_root: {{artifact_root}} (empty means use the rig artifact root)
+- mode: {{mode}}
+- pr_mode: {{pr_mode}}
+- drain_policy: {{drain_policy}}
 """
 formula = "github-issue-fix"
 version = 1
@@ -38,10 +45,17 @@ default = "separate"
 id = "snapshot"
 title = "Snapshot GitHub issue"
 description = """
-Validate `github_issue_url` with
-`{{pack_root}}/assets/scripts/github_api.py parse-url --kind issue`, reject
-shorthand inputs, and refresh the canonical GitHub source bead using
-`{{pack_root}}/assets/scripts/github_api.py issue-snapshot`.
+Resolved GitHub issue URL: {{github_issue_url}}
+Resolved artifact root override: {{artifact_root}} (empty means use the rig
+artifact root)
+Resolved mode: {{mode}}
+Resolved PR mode: {{pr_mode}}
+Resolved drain policy: {{drain_policy}}
+
+Validate the issue URL with
+`{{pack_root}}/assets/scripts/github_api.py parse-url "{{github_issue_url}}" --kind issue`,
+reject shorthand inputs, and refresh the canonical GitHub source bead using
+`{{pack_root}}/assets/scripts/github_api.py issue-snapshot "{{github_issue_url}}"`.
 """
 
 [[steps]]
@@ -49,9 +63,10 @@ id = "triage"
 title = "Run or reuse issue triage"
 needs = ["snapshot"]
 description = """
-Invoke `github-issue-triage` with the same `github_issue_url` and
-`artifact_root`. Because triage is idempotent by issue body hash, this either
-returns the existing current-hash triage report/comment or creates a new one.
+Invoke `github-issue-triage` with GitHub issue URL {{github_issue_url}} and
+artifact root {{artifact_root}}. Because triage is idempotent by issue body
+hash, this either returns the existing current-hash triage report/comment or
+creates a new one.
 """
 
 [[steps]]
@@ -64,7 +79,7 @@ Continue only for `reproduced` with `recommended_next_action: fix` or
 terminal status for `needs_info`, `not_a_bug`, `duplicate`,
 `security_sensitive`, unknown verdicts, or mismatched actions. For
 `security_sensitive`, record `security_process_required` and avoid normal public
-implementation and PR flow.
+implementation and PR flow. The source issue URL is {{github_issue_url}}.
 """
 
 [[steps]]
@@ -74,9 +89,10 @@ needs = ["triage-gate"]
 description = """
 Resume the latest active nonterminal issue-fix run by default. If no active run
 exists, create one under
-`<artifact-root>/github/issues/<owner>/<repo>/<number>/fix/<run-id>/`. If the
-issue body hash changed while a run is active, run/reuse triage for the new hash
-and ask the human whether to continue the old run with updated context or start
+`{{artifact_root}}/github/issues/<owner>/<repo>/<number>/fix/<run-id>/`. If
+`{{artifact_root}}` is empty, resolve the rig artifact root first. If the issue
+body hash changed while a run is active, run/reuse triage for the new hash and
+ask the human whether to continue the old run with updated context or start
 fresh.
 """
 
@@ -88,7 +104,7 @@ description = """
 Render the sticky status comment with
 `{{pack_root}}/assets/scripts/github_reports.py render-issue-fix-status`, then
 create or update it with
-`{{pack_root}}/assets/scripts/github_api.py comment-create` or
+`{{pack_root}}/assets/scripts/github_api.py comment-create "{{github_issue_url}}" --body-file <status-comment.md>` or
 `{{pack_root}}/assets/scripts/github_api.py comment-update`. Keep one sticky
 status comment per issue-fix run and replace deleted comments idempotently.
 """
@@ -101,7 +117,8 @@ description = """
 Mechanically derive `requirements.md` from the issue body and triage report.
 Mark the requirements artifact `status: approved` in both `interactive` and
 `autonomous` modes. For `not_reproduced` plus `test_hardening`, state test
-hardening explicitly and do not claim a confirmed bug fix.
+hardening explicitly and do not claim a confirmed bug fix. Current mode is
+{{mode}}.
 """
 
 [[steps]]
@@ -112,7 +129,8 @@ description = """
 Run the existing `design` skill/formula path over the approved generated
 requirements. In `interactive` mode, human-gate the design artifact. In
 `autonomous` mode, generate and approve the design non-interactively while
-recording the autonomous decision in the run artifacts.
+recording the autonomous decision in the run artifacts. Current mode is
+{{mode}}.
 """
 
 [[steps]]
@@ -124,7 +142,7 @@ Run the existing `decompose` path over approved requirements and design. In
 `interactive` mode, human-gate decomposition/start. In `autonomous` mode,
 generate and approve the task convoy non-interactively. Each issue-fix run owns
 one generated implementation convoy; build-run fix convoys remain
-iteration-specific.
+iteration-specific. Current mode is {{mode}}.
 """
 
 [[steps]]
@@ -134,7 +152,8 @@ needs = ["decompose"]
 description = """
 Launch the existing `build-run` durable formula against the generated
 implementation convoy. `build-run` owns implement, gap-analysis/fix,
-review/fix, final reporting, and loop limits. Pass through `drain_policy`.
+review/fix, final reporting, and loop limits. Pass through drain policy
+{{drain_policy}}.
 """
 
 [[steps]]
@@ -144,8 +163,8 @@ needs = ["build"]
 condition = "{{pr_mode}} != none"
 description = """
 Only after build passes implementation, gap-analysis, and review, publish
-according to `pr_mode`: `draft` opens or updates a draft PR; `ready` opens or
-updates a ready-for-review PR. Resolve the authenticated actor through
+according to PR mode {{pr_mode}}: `draft` opens or updates a draft PR; `ready`
+opens or updates a ready-for-review PR. Resolve the authenticated actor through
 `{{pack_root}}/assets/scripts/github_api.py actor` and reuse an existing PR only
 when the workflow marker, repo/base, authenticated author, and requested mode
 are compatible. If a matching marker belongs to another author, record
@@ -161,5 +180,7 @@ Update the sticky issue-fix status comment at terminal success, failure,
 blocked, or unavailable states. Write final run metadata containing source bead
 id, body hash, triage report path, generated planning artifact paths,
 implementation convoy id, build final report, PR URL when present, and whether
-the run was resumed or newly created.
+the run was resumed or newly created. Include launch input URL
+{{github_issue_url}}, artifact root {{artifact_root}}, mode {{mode}}, PR mode
+{{pr_mode}}, and drain policy {{drain_policy}}.
 """

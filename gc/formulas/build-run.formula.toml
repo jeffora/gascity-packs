@@ -1,4 +1,15 @@
-description = "Durable back half for the build skill: implement, analyze gaps, review, fix, and optionally publish."
+description = """
+Durable back half for the build skill: implement, analyze gaps, review, fix,
+and optionally publish.
+
+Launch inputs:
+- artifact_root: {{artifact_root}}
+- context_path: {{context_path}} (empty means no extra implementation context)
+- drain_policy: {{drain_policy}}
+- max_iterations: {{max_iterations}}
+- push: {{push}}
+- open_pr: {{open_pr}}
+"""
 formula = "build-run"
 version = 1
 contract = "graph.v2"
@@ -33,28 +44,46 @@ default = "false"
 [[steps]]
 id = "implement-initial"
 title = "Implement initial convoy"
-description = "Run implement on the approved initial convoy. Stop and write final-report.md if implementation fails."
+description = """
+Run implement on the approved initial convoy using context path
+{{context_path}}, drain policy {{drain_policy}}, and artifact root
+{{artifact_root}}. Stop and write final-report.md if implementation fails.
+"""
 
 [[steps]]
 id = "gap-loop"
 title = "Run gap-analysis fix loop"
 needs = ["implement-initial"]
-description = "Run gap-analysis. On failed verdict, create a fix convoy and run implement until pass or max_iterations is exhausted."
+description = """
+Run gap-analysis. On failed verdict, create a fix convoy and run implement until
+pass or max_iterations {{max_iterations}} is exhausted. Preserve context path
+{{context_path}} and drain policy {{drain_policy}} for fix work.
+"""
 
 [[steps]]
 id = "review-loop"
 title = "Run implementation review fix loop"
 needs = ["gap-loop"]
-description = "Run review. On failed verdict, create a fix convoy and run implement until pass or max_iterations is exhausted."
+description = """
+Run review. On failed verdict, create a fix convoy and run implement until pass
+or max_iterations {{max_iterations}} is exhausted. Preserve artifact root
+{{artifact_root}} for review and fix artifacts.
+"""
 
 [[steps]]
 id = "finalize"
 title = "Write final report"
 needs = ["review-loop"]
-description = "Write final-report.md for success, failure, timeout, unavailable prerequisites, or recovery-required states."
+description = """
+Write final-report.md under artifact root {{artifact_root}} for success,
+failure, timeout, unavailable prerequisites, or recovery-required states.
+"""
 
 [[steps]]
 id = "publish"
 title = "Optionally publish successful build"
 needs = ["finalize"]
-description = "If push/open_pr are explicit opt-ins and final report passed, run publish."
+description = """
+If push {{push}} or open_pr {{open_pr}} are explicit opt-ins and final report
+passed, run publish.
+"""

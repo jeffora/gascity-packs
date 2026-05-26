@@ -1,6 +1,9 @@
 description = """
 Visible internal helper documenting the pack-facing same-session policy. Public
 launches should use `implement --var drain_policy=same-session`.
+
+Launch inputs:
+- context_path: {{context_path}} (empty means no extra context bundle)
 """
 formula = "same-session-implement"
 version = 1
@@ -16,7 +19,10 @@ default = ""
 [[steps]]
 id = "shared-drain"
 title = "Run core shared drain"
-description = "Emit core `[steps.drain] context = \"shared\"` using do-work-item and `single_lane = true`."
+description = """
+Emit core `[steps.drain] context = "shared"` using do-work-item and
+`single_lane = true`. Pass context path {{context_path}} to shared item work.
+"""
 
 [steps.drain]
 context = "shared"

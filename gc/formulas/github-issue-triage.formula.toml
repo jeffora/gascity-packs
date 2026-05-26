@@ -6,6 +6,11 @@ issue through the pack GitHub wrapper, keys triage by `sha256(issue.body)`,
 validates the triage report schema, and creates or updates the body-hash-keyed
 GitHub comment. It may gather reproduction evidence, but it must not create
 implementation convoys, mutate branches, or publish PRs.
+
+Launch inputs:
+- github_issue_url: {{github_issue_url}}
+- artifact_root: {{artifact_root}} (empty means use the rig artifact root)
+- post_mode: {{post_mode}}
 """
 formula = "github-issue-triage"
 version = 1
@@ -29,10 +34,15 @@ default = "auto"
 id = "snapshot"
 title = "Snapshot GitHub issue"
 description = """
-Validate `github_issue_url` with
-`{{pack_root}}/assets/scripts/github_api.py parse-url --kind issue`, reject
-shorthand inputs, then fetch the current source snapshot with
-`{{pack_root}}/assets/scripts/github_api.py issue-snapshot`.
+Resolved GitHub issue URL: {{github_issue_url}}
+Resolved artifact root override: {{artifact_root}} (empty means use the rig
+artifact root)
+Resolved post mode: {{post_mode}}
+
+Validate the issue URL with
+`{{pack_root}}/assets/scripts/github_api.py parse-url "{{github_issue_url}}" --kind issue`,
+reject shorthand inputs, then fetch the current source snapshot with
+`{{pack_root}}/assets/scripts/github_api.py issue-snapshot "{{github_issue_url}}"`.
 
 Create or refresh the canonical GitHub source bead for repo, issue number, kind,
 title, state, labels, author, body hash, and source URL. Do not use title,
@@ -45,7 +55,8 @@ title = "Reuse current body-hash triage when present"
 needs = ["snapshot"]
 description = """
 Look for the current body-hash artifact directory:
-`<artifact-root>/github/issues/<owner>/<repo>/<number>/triage/<body-hash>/`.
+`{{artifact_root}}/github/issues/<owner>/<repo>/<number>/triage/<body-hash>/`.
+If `{{artifact_root}}` is empty, resolve the rig artifact root first.
 
 If a validated `triage-report.md` and current comment metadata already exist
 for the same repo, issue number, and body hash, return that run after refreshing
@@ -58,6 +69,9 @@ id = "write-triage-report"
 title = "Write triage report"
 needs = ["reuse-current-body-hash"]
 description = """
+Use GitHub issue URL {{github_issue_url}} as the source issue for all triage
+work in this step.
+
 Investigate the issue and optional repro evidence. Write `triage-report.md`
 with schema `gc.github-issue-triage-report.v1`, then validate it with
 `{{pack_root}}/assets/scripts/github_reports.py validate-triage --repo <owner>/<repo> --issue-number <number> --body-hash <body-hash>`.
@@ -76,7 +90,8 @@ description = """
 Render one body-hash-keyed public comment. The comment must include a durable
 workflow marker for the repo, issue number, and body hash. For
 `security_sensitive` or `priority: p0`, render only safe public summary text
-until the human gate approves the final comment body.
+until the human gate approves the final comment body. The source issue URL is
+{{github_issue_url}}.
 """
 
 [[steps]]
@@ -87,7 +102,7 @@ condition = "{{post_mode}} == human_gate or triage_priority == p0 or triage_verd
 description = """
 Send the rendered triage report and proposed comment to the human gate. The
 gate records decision and attachments only; this formula owns whether to post,
-revise, or stop after the gate result.
+revise, or stop after the gate result. Current post mode is {{post_mode}}.
 """
 
 [[steps]]
@@ -96,7 +111,7 @@ title = "Create or update triage comment"
 needs = ["render-comment", "human-gate-sensitive-output"]
 description = """
 Create or update the body-hash-keyed issue comment through
-`{{pack_root}}/assets/scripts/github_api.py comment-create` or
+`{{pack_root}}/assets/scripts/github_api.py comment-create "{{github_issue_url}}" --body-file <comment.md>` or
 `{{pack_root}}/assets/scripts/github_api.py comment-update`. Do not call `gh`
 directly except to diagnose a wrapper failure.
 """
@@ -108,5 +123,7 @@ needs = ["post-comment"]
 description = """
 Write final run metadata containing the source bead id, body hash, triage report
 path, rendered comment path, GitHub comment id/url, verdict, priority,
-recommended next action, and whether this run reused prior body-hash output.
+recommended next action, launch input URL {{github_issue_url}}, artifact root
+{{artifact_root}}, post mode {{post_mode}}, and whether this run reused prior
+body-hash output.
 """

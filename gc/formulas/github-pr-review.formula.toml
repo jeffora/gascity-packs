@@ -6,6 +6,12 @@ snapshots the PR through the pack wrapper, keys review attempts by PR head SHA,
 delegates judgment to the generic targetless `review` formula, renders one
 sticky normal PR comment, and never mutates code or submits formal GitHub review
 events.
+
+Launch inputs:
+- github_pr_url: {{github_pr_url}}
+- artifact_root: {{artifact_root}} (empty means use the rig artifact root)
+- context_path: {{context_path}} (empty means no extra context bundle)
+- post_mode: {{post_mode}}
 """
 formula = "github-pr-review"
 version = 1
@@ -33,10 +39,16 @@ default = "human_gate"
 id = "snapshot"
 title = "Snapshot GitHub PR"
 description = """
-Validate `github_pr_url` with
-`{{pack_root}}/assets/scripts/github_api.py parse-url --kind pull`, reject
-shorthand inputs, then fetch the current PR source snapshot with
-`{{pack_root}}/assets/scripts/github_api.py pr-snapshot`.
+Resolved GitHub PR URL: {{github_pr_url}}
+Resolved artifact root override: {{artifact_root}} (empty means use the rig
+artifact root)
+Resolved context path: {{context_path}} (empty means no extra context bundle)
+Resolved post mode: {{post_mode}}
+
+Validate the PR URL with
+`{{pack_root}}/assets/scripts/github_api.py parse-url "{{github_pr_url}}" --kind pull`,
+reject shorthand inputs, then fetch the current PR source snapshot with
+`{{pack_root}}/assets/scripts/github_api.py pr-snapshot "{{github_pr_url}}"`.
 
 Create or refresh the canonical GitHub source bead for repo, PR number, kind,
 title, body hash, state, author, head SHA, head ref, base ref, and source URL.
@@ -48,7 +60,8 @@ title = "Reuse current head-SHA review when present"
 needs = ["snapshot"]
 description = """
 Look for the current head-SHA review artifact directory:
-`<artifact-root>/github/pulls/<owner>/<repo>/<number>/reviews/<head-sha>/`.
+`{{artifact_root}}/github/pulls/<owner>/<repo>/<number>/reviews/<head-sha>/`.
+If `{{artifact_root}}` is empty, resolve the rig artifact root first.
 
 If a validated review report/comment or waiting human gate already exists for
 the same repo, PR number, and head SHA, resume that attempt. If the stored
@@ -61,7 +74,8 @@ title = "Run generic review"
 needs = ["reuse-current-head"]
 description = """
 Invoke the generic targetless `review` formula over the PR diff, branch, commit,
-or artifact subject for this head SHA. Pass through `context_path` when set.
+or artifact subject for this head SHA. Pass through context path
+{{context_path}} when set.
 The adapter does not check out a mutation worktree, push commits, amend
 contributor branches, or create follow-up PRs.
 """
@@ -76,6 +90,7 @@ Validate the generic review verdict report and map it with
 `pass/none -> approve`, `fail/minor -> comment`, `fail/major -> request_changes`,
 and `fail/blocker -> block`. Render the normal PR comment with
 `{{pack_root}}/assets/scripts/github_reports.py render-review-comment`.
+The source PR URL is {{github_pr_url}}.
 """
 
 [[steps]]
@@ -86,7 +101,7 @@ condition = "{{post_mode}} == human_gate"
 description = """
 Send the rendered review report and comment to the human gate. The gate records
 decision and attachments only; this formula owns whether to post, revise, or
-stop after the gate result.
+stop after the gate result. Current post mode is {{post_mode}}.
 """
 
 [[steps]]
@@ -95,7 +110,7 @@ title = "Create or update sticky PR comment"
 needs = ["render-comment", "human-gate-comment"]
 description = """
 Create or update exactly one normal PR comment for this head SHA through
-`{{pack_root}}/assets/scripts/github_api.py comment-create` or
+`{{pack_root}}/assets/scripts/github_api.py comment-create "{{github_pr_url}}" --body-file <comment.md>` or
 `{{pack_root}}/assets/scripts/github_api.py comment-update`. Do not submit
 formal GitHub review events in v0.
 """
@@ -106,6 +121,8 @@ title = "Finalize PR review result"
 needs = ["post-comment"]
 description = """
 Write final run metadata containing source bead id, head SHA, review report
-path, rendered comment path, GitHub comment id/url, mapped outcome, post mode,
-and whether this run reused prior head-SHA output.
+path, rendered comment path, GitHub comment id/url, mapped outcome, launch input
+URL {{github_pr_url}}, artifact root {{artifact_root}}, context path
+{{context_path}}, post mode {{post_mode}}, and whether this run reused prior
+head-SHA output.
 """

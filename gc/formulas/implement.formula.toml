@@ -4,6 +4,14 @@ Convoy-first implementation entry point.
 Core injects the reserved graph.v2 `convoy_id` target. The formula never
 declares that variable itself and rejects legacy bead/issue targeting before it
 creates drain work.
+
+Launch inputs:
+- context_path: {{context_path}} (empty means no extra context bundle)
+- drain_policy: {{drain_policy}}
+- worker_target: {{worker_target}} (empty means use the formula-selected worker target)
+- summary_path: {{summary_path}} (empty means use the default implementation summary)
+- push: {{push}}
+- open_pr: {{open_pr}}
 """
 formula = "implement"
 version = 2
@@ -45,10 +53,11 @@ Requirements:
 - read reserved `convoy_id` from core graph context
 - fail if the target is not a convoy or normalized singleton convoy
 - reject legacy `issue`, `bead_id`, or user-supplied `convoy_id` inputs
-- validate `context_path` with `{{pack_root}}/assets/scripts/validate_context_bundle.py` when set
-- reject `drain_policy` values other than `separate` or `same-session`
+- validate context_path {{context_path}} with `{{pack_root}}/assets/scripts/validate_context_bundle.py` when set
+- reject drain_policy {{drain_policy}} values other than `separate` or `same-session`
 - inspect the convoy target branch, defaulting to the repo default branch
-- write a run-status artifact if `summary_path` or artifact root is provided
+- write a run-status artifact if summary_path {{summary_path}} or artifact root is provided
+- record worker_target {{worker_target}}, push {{push}}, and open_pr {{open_pr}}
 
 Close pass only after no workflow roots, drain controls, routed beads,
 worktrees, refs, or publish records have been created before validation.
@@ -63,6 +72,7 @@ description = """
 Use core graph.v2 drain to materialize one full `do-work` lifecycle per
 selected non-convoy runnable member. The pack does not enumerate members before
 formula instantiation; core owns drain-unit convoy creation and manifest state.
+Use worker target override {{worker_target}} when provided.
 """
 
 [steps.drain]
@@ -78,6 +88,7 @@ condition = "{{drain_policy}} == same-session"
 description = """
 Same-session is pack policy. Emit core shared drain, require one executable item
 lane, and fail closed if core cannot prove dependency-safe manifest order.
+Use context path {{context_path}} for each shared item when set.
 """
 
 [steps.drain]
@@ -97,7 +108,7 @@ description = """
 Wait on the core drain manifest. Success requires every selected runnable
 anchor to be terminal-success or already closed. Failed, skipped, abandoned, or
 still-open anchors make implement fail and write the aggregate summary.
-Do not close the input convoy head.
+Do not close the input convoy head. Summary path override is {{summary_path}}.
 """
 
 [[steps]]
@@ -108,5 +119,5 @@ description = """
 Write the aggregate implementation summary, including selected anchors, drain
 policy, item result classes, report paths, commit refs when available, and any
 operator recovery instructions. Direct implement does not run gap-analysis or
-review loops.
+review loops. Publish settings are push {{push}} and open_pr {{open_pr}}.
 """
