@@ -16,7 +16,7 @@ Import it with the `gc` binding:
 
 ```toml
 [imports.gc]
-source = "../gascity-packs/gc"
+source = "../gascity-packs/gascity"
 ```
 
 Run the mayor skill to plan and coordinate work:
@@ -46,9 +46,9 @@ the core-injected reserved convoy target; they do not declare `issue`,
 default. Use `same-session` only when preserving one shared worktree and
 conversation is explicitly desired and core shared drain support is available.
 
-The pack ships providerless rig role agents under `gc/roles`. Standalone use
+The pack ships providerless rig role agents under `gascity/roles`. Standalone use
 requires both imports: the top-level `gc` import for formulas and the mayor
-skill, plus a `gc/roles` import on each target rig that should run work. A city
+skill, plus a `gascity/roles` import on each target rig that should run work. A city
 that imports only the formulas can read the mayor skill, but default formula
 steps will not have rig-local `gc.*` role agents to route to.
 
@@ -62,7 +62,7 @@ formulas:
 name = "my-repo"
 
 [rigs.imports.gc]
-source = "/path/to/gc/roles"
+source = "/path/to/gascity/roles"
 
 [[rigs.patches]]
 agent = "gc.implementation-worker"
@@ -71,7 +71,7 @@ provider = "your-provider"
 
 Launch the formulas from the target rig context, or pass your normal
 `--rig <target-rig>` selection so `gc.run-operator` resolves to the rig-local
-role from `gc/roles`.
+role from `gascity/roles`.
 
 Default formula routes use these qualified targets: `gc.run-operator`,
 `gc.requirements-planner`, `gc.design-author`, `gc.task-decomposer`,
