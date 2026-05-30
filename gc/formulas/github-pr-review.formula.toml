@@ -19,6 +19,10 @@ version = 1
 contract = "graph.v2"
 target_required = false
 
+[catalog]
+name = "github-pr-review"
+description = "Review a GitHub pull request through the GitHub PR adapter workflow."
+
 [vars]
 [vars.github_pr_url]
 description = "Full GitHub PR URL: https://github.com/<owner>/<repo>/pull/<number>."
@@ -39,6 +43,7 @@ default = "human_gate"
 [[steps]]
 id = "snapshot"
 title = "Snapshot GitHub PR"
+metadata = { "gc.run_target" = "gc.run-operator" }
 description = """
 Resolved GitHub PR URL: {{github_pr_url}}
 Resolved artifact root override: {{artifact_root}} (empty means use the rig artifact root)
@@ -92,6 +97,7 @@ Only `gc.github.head_sha` controls head-SHA-keyed PR review reuse.
 id = "reuse-current-head"
 title = "Reuse current head-SHA review when present"
 needs = ["snapshot"]
+metadata = { "gc.run_target" = "gc.run-operator" }
 description = """
 Look for the current head-SHA review artifact directory:
 `/github/pulls/<owner>/<repo>/<number>/reviews/<head-sha>/`, resolved under
@@ -108,6 +114,7 @@ sticky comment was deleted, create a replacement and update metadata.
 id = "run-review"
 title = "Run generic review"
 needs = ["reuse-current-head"]
+metadata = { "gc.run_target" = "gc.implementation-reviewer" }
 description = """
 Invoke the generic targetless `review` formula over the PR diff, branch, commit,
 or artifact subject for this head SHA. Pass through context path
@@ -120,6 +127,7 @@ contributor branches, or create follow-up PRs.
 id = "render-comment"
 title = "Render sticky PR comment"
 needs = ["run-review"]
+metadata = { "gc.run_target" = "gc.run-operator" }
 description = """
 Validate the generic review verdict report and map it with
 `{{pack_root}}/assets/scripts/github_reports.py review-outcome`:
@@ -134,6 +142,7 @@ id = "human-gate-comment"
 title = "Gate PR review comment"
 needs = ["render-comment"]
 condition = "{{post_mode}} == human_gate"
+metadata = { "gc.run_target" = "gc.run-operator" }
 description = """
 Send the rendered review report and comment to the human gate. The gate records
 decision and attachments only; this formula owns whether to post, revise, or
@@ -144,6 +153,7 @@ stop after the gate result. Current post mode is {{post_mode}}.
 id = "post-comment"
 title = "Create or update sticky PR comment"
 needs = ["render-comment", "human-gate-comment"]
+metadata = { "gc.run_target" = "gc.run-operator" }
 description = """
 Create or update exactly one normal PR comment for this head SHA through
 `{{pack_root}}/assets/scripts/github_api.py comment-create "{{github_pr_url}}" --body-file <comment.md>` or
@@ -155,6 +165,7 @@ formal GitHub review events in v0.
 id = "finalize"
 title = "Finalize PR review result"
 needs = ["post-comment"]
+metadata = { "gc.run_target" = "gc.run-operator" }
 description = """
 Write final run metadata containing source bead id, head SHA, review report
 path, rendered comment path, GitHub comment id/url, mapped outcome, launch input

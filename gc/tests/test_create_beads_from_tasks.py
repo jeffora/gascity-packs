@@ -108,6 +108,12 @@ class CreateBeadsFromTasksTests(unittest.TestCase):
         with self.assertRaises(script.PlanError):
             script.parse_plan(script.extract_payload(text))
 
+    def test_test_issue_type_fails_validation(self) -> None:
+        text = sample_tasks().replace("type: docs", "type: test")
+
+        with self.assertRaisesRegex(script.PlanError, "unsupported type 'test'"):
+            script.parse_plan(script.extract_payload(text))
+
     def test_empty_convoy_fails_validation(self) -> None:
         text = sample_tasks().replace(
             "    beads:\n"

@@ -12,6 +12,10 @@ contract = "graph.v2"
 target_required = false
 mode = "report"
 
+[catalog]
+name = "gap-analysis"
+description = "Write a report comparing implementation artifacts to approved requirements and design."
+
 [vars]
 [vars.context_path]
 description = "Optional context bundle path."
@@ -28,6 +32,7 @@ required = true
 [[steps]]
 id = "validate-context"
 title = "Validate report context"
+metadata = { "gc.run_target" = "gc.run-operator" }
 description = """
 Validate optional context bundle {{context_path}} and subject path
 {{subject_path}}. This formula is report-only and must not mutate beads,
@@ -38,6 +43,7 @@ branches, or source files.
 id = "write-report"
 title = "Write gap-analysis report"
 needs = ["validate-context"]
+metadata = { "gc.run_target" = "gc.gap-analyst" }
 description = """
 Write the gap-analysis verdict report to {{report_path}} with pass/fail,
 findings, missing evidence, and recommended fixes for subject {{subject_path}}.

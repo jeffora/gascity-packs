@@ -19,6 +19,7 @@ default = ""
 [[steps]]
 id = "implement-item"
 title = "Implement shared-drain item"
+metadata = { "gc.run_target" = "gc.implementation-worker" }
 description = """
 Run inside an existing shared worktree lifecycle. Resolve reserved `convoy_id`,
 read `gc.drain_member_id` and `gc.drain_item_index`, validate ownership and

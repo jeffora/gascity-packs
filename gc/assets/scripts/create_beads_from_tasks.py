@@ -23,7 +23,7 @@ PAYLOAD_RE = re.compile(
 )
 CREATED_RE = re.compile(r"^## Created Beads\s*?\n.*?(?=^## |\Z)", re.MULTILINE | re.DOTALL)
 FRONT_MATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
-VALID_TYPES = {"feature", "bug", "task", "chore", "docs", "test"}
+VALID_TYPES = {"feature", "bug", "task", "chore", "docs"}
 VALID_PRIORITIES = {"0", "1", "2", "3", "4", "P0", "P1", "P2", "P3", "P4"}
 
 
@@ -647,7 +647,7 @@ def create_from_tasks(path: Path, *, city: str | None, dry_run: bool, force: boo
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Create Gas City beads and convoys from a gc.decompose tasks.md file")
+    parser = argparse.ArgumentParser(description="Create Gas City beads and convoys from a gc mayor tasks.md file")
     parser.add_argument("tasks_md", help="Path to tasks.md")
     parser.add_argument("--city", help="Optional city path/name passed through to gc")
     parser.add_argument("--dry-run", action="store_true", help="Validate and print gc commands without creating beads")

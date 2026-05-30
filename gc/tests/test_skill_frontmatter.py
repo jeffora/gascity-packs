@@ -13,16 +13,7 @@ class SkillFrontmatterTests(unittest.TestCase):
         self.assertEqual(
             [path.parent.name for path in skill_files],
             [
-                "build",
-                "decompose",
-                "design",
-                "gap-analysis",
-                "gh-issue-fix",
-                "gh-issue-triage",
-                "gh-pr-review",
-                "implement",
-                "plan",
-                "review",
+                "mayor",
             ],
         )
         for path in skill_files:

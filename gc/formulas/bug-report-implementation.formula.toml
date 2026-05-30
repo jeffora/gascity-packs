@@ -1,0 +1,134 @@
+description = """
+Default bug report implementation workflow skeleton.
+
+This formula is the implementation-side companion to `bug-report-flow`. It
+starts after classification selects a fix or test-hardening path and preserves
+the standard checkpoints: approve plan, review plan, implement, review code,
+open PR, wait for CI, approve merge, and finalize.
+"""
+formula = "bug-report-implementation"
+version = 1
+contract = "graph.v2"
+
+[vars.issue_bead_id]
+description = "Canonical bug issue bead ID."
+required = true
+
+[vars.work_dir]
+description = "Canonical worktree path."
+required = true
+
+[vars.run_id]
+description = "Active bug-report run ID."
+required = true
+
+[[steps]]
+id = "body"
+title = "Bug report implementation body scope"
+needs = ["approve-fix-plan", "approve-test-hardening-plan", "verify-selected-plan-approval", "prepare-design-review-doc", "design-review", "implement-change", "prepare-review-context", "code-review-loop", "approve-pr-open", "verify-pr-open-approval", "open-or-update-pr", "wait-for-ci", "approve-merge", "verify-merge-approval", "merge-and-finalize"]
+description = "Terminal latch for the bug report implementation workflow."
+metadata = { "gc.kind" = "scope", "gc.scope_name" = "bug-report-implementation", "gc.scope_role" = "body" }
+
+[[steps]]
+id = "approve-fix-plan"
+title = "Approve fix plan"
+description = "For issue `{{issue_bead_id}}` in worktree `{{work_dir}}` and run `{{run_id}}`, prepare and gate the proposed fix plan when the selected path is a confirmed bug."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "setup", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.implementation-worker" }
+
+[[steps]]
+id = "approve-test-hardening-plan"
+title = "Approve test-hardening plan"
+needs = ["approve-fix-plan"]
+description = "When the selected path is test hardening, prepare and gate the proposed hardening plan."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "setup", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.implementation-worker" }
+
+[[steps]]
+id = "verify-selected-plan-approval"
+title = "Verify selected plan approval"
+needs = ["approve-test-hardening-plan"]
+description = "Verify the durable approval artifact for the selected implementation path."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.run-operator" }
+
+[[steps]]
+id = "prepare-design-review-doc"
+title = "Prepare design review document"
+needs = ["verify-selected-plan-approval"]
+description = "Prepare the approved plan as a design-review document."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.run-operator" }
+
+[[steps]]
+id = "design-review"
+title = "Review approved plan"
+needs = ["prepare-design-review-doc"]
+description = "Review the approved implementation or test-hardening plan before code changes begin."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.review-synthesizer" }
+
+[[steps]]
+id = "implement-change"
+title = "Implement approved change"
+needs = ["design-review"]
+description = "Implement the approved fix or regression hardening in the prepared worktree."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.implementation-worker" }
+
+[[steps]]
+id = "prepare-review-context"
+title = "Prepare implementation review context"
+needs = ["implement-change"]
+description = "Prepare a review context for the implementation diff."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.run-operator" }
+
+[[steps]]
+id = "code-review-loop"
+title = "Review and fix implementation"
+needs = ["prepare-review-context"]
+description = "Review the implementation and loop through required fixes until approved."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.review-synthesizer" }
+
+[[steps]]
+id = "approve-pr-open"
+title = "Approve PR publication"
+needs = ["code-review-loop"]
+description = "Ask for human approval before opening or updating the PR."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.run-operator" }
+
+[[steps]]
+id = "verify-pr-open-approval"
+title = "Verify PR-open approval"
+needs = ["approve-pr-open"]
+description = "Verify the durable PR-open approval artifact."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.run-operator" }
+
+[[steps]]
+id = "open-or-update-pr"
+title = "Open or update PR"
+needs = ["verify-pr-open-approval"]
+description = "Open or update the canonical PR for the approved implementation."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.publisher" }
+
+[[steps]]
+id = "wait-for-ci"
+title = "Wait for CI"
+needs = ["open-or-update-pr"]
+description = "Wait for visible CI and record the result."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.run-operator" }
+
+[[steps]]
+id = "approve-merge"
+title = "Approve merge"
+needs = ["wait-for-ci"]
+description = "Ask for human approval before merging."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.run-operator" }
+
+[[steps]]
+id = "verify-merge-approval"
+title = "Verify merge approval"
+needs = ["approve-merge"]
+description = "Verify the durable merge approval artifact."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.run-operator" }
+
+[[steps]]
+id = "merge-and-finalize"
+title = "Merge and finalize"
+needs = ["verify-merge-approval"]
+description = "Merge the approved PR and publish the final issue summary."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.publisher" }

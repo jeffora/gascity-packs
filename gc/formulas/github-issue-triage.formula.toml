@@ -1,172 +1,24 @@
 description = """
-Targetless GitHub issue triage adapter.
+Public GitHub issue triage adapter.
 
-This formula accepts only a full canonical GitHub issue URL. It snapshots the
-issue through the pack GitHub wrapper, keys triage by `sha256(issue.body)`,
-validates the triage report schema, and creates or updates the body-hash-keyed
-GitHub comment. It may gather reproduction evidence, but it must not create
-implementation convoys, mutate branches, or publish PRs.
+This wrapper inherits the base adapter stack from `github-issue-triage-base`.
+Override formulas should extend that base formula directly and replace only the
+step or steps they customize.
 
 Launch inputs:
 - github_issue_url: {{github_issue_url}}
 - artifact_root: {{artifact_root}} (optional override; empty resolves to the
   rig artifact root with the pack artifact helper)
 - post_mode: {{post_mode}}
+- triage_rubric_path: {{triage_rubric_path}} (optional Markdown rubric/prompt
+  for report behavior; empty uses the base rubric)
 """
 formula = "github-issue-triage"
+extends = ["github-issue-triage-base"]
 version = 1
 contract = "graph.v2"
 target_required = false
 
-[vars]
-[vars.github_issue_url]
-description = "Full GitHub issue URL: https://github.com/<owner>/<repo>/issues/<number>."
-required = true
-
-[vars.artifact_root]
-description = "Optional artifact root override. Empty resolves to the rig artifact root through assets/scripts/artifacts.py."
-default = ""
-
-[vars.post_mode]
-description = "Comment posting policy: auto or human_gate. Security-sensitive and p0 output always gates."
-default = "auto"
-
-[[steps]]
-id = "snapshot"
-title = "Snapshot GitHub issue"
-description = """
-Resolved GitHub issue URL: {{github_issue_url}}
-Resolved artifact root override: {{artifact_root}} (empty means use the rig artifact root)
-Resolved post mode: {{post_mode}}
-
-Artifact root semantics:
-- Resolve the durable artifact root with
-  `{{pack_root}}/assets/scripts/artifacts.py root --override "{{artifact_root}}"`.
-- Paths shown with a leading slash, such as
-  `/github/issues/<owner>/<repo>/<number>/source.json`, are
-  artifact-root-relative, not filesystem-root absolute.
-- Resolve concrete files with
-  `{{pack_root}}/assets/scripts/artifacts.py path --override "{{artifact_root}}" --relative "/github/issues/<owner>/<repo>/<number>/source.json" --mkdir-parents`.
-- Store absolute resolved artifact paths in bead metadata. Do not infer source
-  identity, workflow identity, readiness, or routing from artifact paths.
-
-Validate the issue URL with
-`{{pack_root}}/assets/scripts/github_api.py parse-url "{{github_issue_url}}" --kind issue`,
-reject shorthand inputs, then fetch the current source snapshot with
-`{{pack_root}}/assets/scripts/github_api.py issue-snapshot "{{github_issue_url}}"`.
-
-Write the returned snapshot JSON to
-artifact-root-relative path `/github/issues/<owner>/<repo>/<number>/source.json`.
-Then create or refresh the canonical GitHub source bead using this v0 contract:
-
-- Source beads are non-runnable index/cache beads. Do not route the source bead,
-  assign it, depend on it, or use it as a readiness gate.
-- Lookup uses object identity only:
-  `bd list --metadata-field gc.kind=github_source --metadata-field gc.github.kind=issue --metadata-field gc.github.repo=<owner>/<repo> --metadata-field gc.github.number=<number> --status open,in_progress,closed --limit 1 --json`.
-- Write `source-metadata.json` with flat string metadata:
-  `gc.kind=github_source`, `gc.github.kind=issue`,
-  `gc.github.repo=<owner>/<repo>`, `gc.github.number=<number>`,
-  `gc.github.url=<canonical_url>`, `gc.github.title=<title>`,
-  `gc.github.state=<state>`, `gc.github.author=<author>`,
-  `gc.github.labels=<comma-separated labels>`,
-  `gc.github.body_hash=<body_hash>`,
-  `gc.github.snapshot_path=<absolute source.json path>`,
-  `gc.github.updated_at=<updated_at>`.
-- If no bead exists, create it with
-  `bd create "GitHub issue source: <owner>/<repo>#<number>" --type task --labels gc.github-source,gc.github-issue --external-ref <canonical_url> --metadata @source-metadata.json`.
-- If a bead exists, refresh it with
-  `bd update <source-bead-id> --external-ref <canonical_url> --metadata @source-metadata.json`.
-
-Do not use title, label, assignee, or state changes to invalidate triage; only
-`gc.github.body_hash` controls body-hash-keyed triage reuse.
-"""
-
-[[steps]]
-id = "reuse-current-body-hash"
-title = "Reuse current body-hash triage when present"
-needs = ["snapshot"]
-description = """
-Look for the current body-hash artifact directory:
-`/github/issues/<owner>/<repo>/<number>/triage/<body-hash>/`, resolved under
-the artifact root with `{{pack_root}}/assets/scripts/artifacts.py path
---override "{{artifact_root}}" --relative
-"/github/issues/<owner>/<repo>/<number>/triage/<body-hash>/" --directory`.
-
-If a validated `triage-report.md` and current comment metadata already exist
-for the same repo, issue number, and body hash, return that run after refreshing
-source metadata. If the stored comment was deleted, create a replacement from
-the existing rendered comment and update metadata.
-"""
-
-[[steps]]
-id = "write-triage-report"
-title = "Write triage report"
-needs = ["reuse-current-body-hash"]
-description = """
-Use GitHub issue URL {{github_issue_url}} as the source issue for all triage
-work in this step.
-
-Investigate the issue and optional repro evidence. Write `triage-report.md`
-with schema `gc.github-issue-triage-report.v1`, then validate it with
-`{{pack_root}}/assets/scripts/github_reports.py validate-triage --repo <owner>/<repo> --issue-number <number> --body-hash <body-hash>`.
-
-The YAML front matter is only the machine contract. Below it, write a useful
-human-readable analysis body with at least:
-- `## Summary`: what you found and why the verdict follows.
-- `## Evidence`: concrete source/test/runtime evidence, including commands,
-  files, or artifacts checked.
-- `## Recommendation`: the next action and any residual risk.
-
-Allowed verdicts are `reproduced`, `not_reproduced`, `needs_info`, `not_a_bug`,
-`duplicate`, and `security_sensitive`. Allowed next actions are bound to the
-verdict by the validator. Reproduction work may write logs, repro scripts, and
-patch evidence under the triage artifact directory only.
-"""
-
-[[steps]]
-id = "render-comment"
-title = "Render triage comment"
-needs = ["write-triage-report"]
-description = """
-Render one body-hash-keyed public comment. The comment must include a durable
-workflow marker for the repo, issue number, and body hash. Use
-`{{pack_root}}/assets/scripts/github_reports.py render-triage-comment` so the
-structured front-matter fields are followed by the triage report analysis body
-for human and future-agent readers. For `security_sensitive` or `priority: p0`,
-render only safe public summary text until the human gate approves the final
-comment body. The source issue URL is {{github_issue_url}}.
-"""
-
-[[steps]]
-id = "human-gate-sensitive-output"
-title = "Gate sensitive or forced-human output"
-needs = ["render-comment"]
-condition = "{{post_mode}} == human_gate or triage_priority == p0 or triage_verdict == security_sensitive"
-description = """
-Send the rendered triage report and proposed comment to the human gate. The
-gate records decision and attachments only; this formula owns whether to post,
-revise, or stop after the gate result. Current post mode is {{post_mode}}.
-"""
-
-[[steps]]
-id = "post-comment"
-title = "Create or update triage comment"
-needs = ["render-comment", "human-gate-sensitive-output"]
-description = """
-Create or update the body-hash-keyed issue comment through
-`{{pack_root}}/assets/scripts/github_api.py comment-create "{{github_issue_url}}" --body-file <comment.md>` or
-`{{pack_root}}/assets/scripts/github_api.py comment-update`. Do not call `gh`
-directly except to diagnose a wrapper failure.
-"""
-
-[[steps]]
-id = "finalize"
-title = "Finalize triage result"
-needs = ["post-comment"]
-description = """
-Write final run metadata containing the source bead id, body hash, triage report
-path, rendered comment path, GitHub comment id/url, verdict, priority,
-recommended next action, launch input URL {{github_issue_url}}, artifact root
-{{artifact_root}}, post mode {{post_mode}}, and whether this run reused prior
-body-hash output.
-"""
+[catalog]
+name = "github-issue-triage"
+description = "Triage a GitHub issue through the GitHub issue adapter workflow."

@@ -1,0 +1,60 @@
+description = """
+Default read-only bug-hunt workflow skeleton.
+
+The default formula prepares a static-audit attempt, performs hunter work,
+synthesizes findings, and finalizes qualifying bugs under a parent epic.
+Advanced packs can override any step with richer fanout behavior.
+"""
+formula = "bug-hunt"
+version = 1
+contract = "graph.v2"
+
+[catalog]
+name = "bug-hunt"
+description = "Run a read-only bug hunt over selected scope paths and create or update bug beads for qualifying findings."
+
+[vars.parent]
+description = "Bug-hunt parent epic bead ID."
+required = true
+
+[vars.scopes]
+description = "Comma-separated scope paths relative to the rig root."
+default = "."
+
+[vars.artifact_dir]
+description = "Artifact directory relative to the rig root."
+required = true
+
+[[steps]]
+id = "body"
+title = "Bug hunt body scope"
+needs = ["prepare-hunters", "hunter-fanout", "synthesize-findings", "finalize"]
+description = "Terminal latch for the bug-hunt workflow."
+metadata = { "gc.kind" = "scope", "gc.scope_name" = "bug-hunt", "gc.scope_role" = "body" }
+
+[[steps]]
+id = "prepare-hunters"
+title = "Prepare bug-hunt assignments"
+description = "Prepare durable attempt artifacts under `{{artifact_dir}}` and hunter assignments for parent `{{parent}}` over scopes `{{scopes}}`."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "setup", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.run-operator" }
+
+[[steps]]
+id = "hunter-fanout"
+title = "Run bug hunters"
+needs = ["prepare-hunters"]
+description = "Run the configured read-only bug hunters."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.implementation-reviewer" }
+
+[[steps]]
+id = "synthesize-findings"
+title = "Synthesize bug-hunt findings"
+needs = ["hunter-fanout"]
+description = "Synthesize hunter reports into machine-readable findings."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "member", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.review-synthesizer" }
+
+[[steps]]
+id = "finalize"
+title = "Finalize bug hunt"
+needs = ["synthesize-findings"]
+description = "Finalize the parent epic and create or update child bug beads for qualifying findings."
+metadata = { "gc.scope_ref" = "body", "gc.scope_role" = "teardown", "gc.on_fail" = "abort_scope", "gc.run_target" = "gc.run-operator" }

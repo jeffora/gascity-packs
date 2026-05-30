@@ -8,7 +8,6 @@ creates drain work.
 Launch inputs:
 - context_path: {{context_path}} (empty means no extra context bundle)
 - drain_policy: {{drain_policy}}
-- worker_target: {{worker_target}} (empty means use the formula-selected worker target)
 - summary_path: {{summary_path}} (empty means use the default implementation summary)
 - push: {{push}}
 - open_pr: {{open_pr}}
@@ -18,6 +17,10 @@ version = 2
 contract = "graph.v2"
 target_required = true
 
+[catalog]
+name = "implement"
+description = "Launch implementation for an approved convoy without the full build loop."
+
 [vars]
 [vars.context_path]
 description = "Optional context bundle path with name/path/description entries."
@@ -26,10 +29,6 @@ default = ""
 [vars.drain_policy]
 description = "Implementation drain policy: separate or same-session."
 default = "separate"
-
-[vars.worker_target]
-description = "Optional worker target for separate item implementation."
-default = ""
 
 [vars.summary_path]
 description = "Optional aggregate implementation summary path."
@@ -46,8 +45,12 @@ default = "false"
 [[steps]]
 id = "prepare"
 title = "Validate implementation convoy"
+metadata = { "gc.run_target" = "gc.run-operator" }
 description = """
 Validate graph.v2 target state before side effects.
+
+This step is validation only. Do not edit source files in the launcher checkout,
+any existing worktree, or any newly created path. Do not create, modify, or commit source code. Do not run implementation or test-fix loops.
 
 Requirements:
 - read reserved `convoy_id` from core graph context
@@ -57,7 +60,7 @@ Requirements:
 - reject drain_policy {{drain_policy}} values other than `separate` or `same-session`
 - inspect the convoy target branch, defaulting to the repo default branch
 - write a run-status artifact if summary_path {{summary_path}} or artifact root is provided
-- record worker_target {{worker_target}}, push {{push}}, and open_pr {{open_pr}}
+- record push {{push}} and open_pr {{open_pr}}
 
 Close pass only after no workflow roots, drain controls, routed beads,
 worktrees, refs, or publish records have been created before validation.
@@ -68,11 +71,13 @@ id = "drain-separate"
 title = "Drain implementation convoy into separate sessions"
 needs = ["prepare"]
 condition = "{{drain_policy}} == separate"
+metadata = { "gc.run_target" = "gc.implementation-worker" }
 description = """
 Use core graph.v2 drain to materialize one full `do-work` lifecycle per
 selected non-convoy runnable member. The pack does not enumerate members before
 formula instantiation; core owns drain-unit convoy creation and manifest state.
-Use worker target override {{worker_target}} when provided.
+Drain item workflows route through this pack's implementation and operator role
+agents.
 """
 
 [steps.drain]
@@ -85,6 +90,7 @@ id = "drain-same-session"
 title = "Drain implementation convoy in one shared session"
 needs = ["prepare"]
 condition = "{{drain_policy}} == same-session"
+metadata = { "gc.run_target" = "gc.implementation-worker" }
 description = """
 Same-session is pack policy. Emit core shared drain, require one executable item
 lane, and fail closed if core cannot prove dependency-safe manifest order.
@@ -104,17 +110,27 @@ single_lane = true
 id = "wait-for-drain"
 title = "Wait for drain completion"
 needs = ["drain-separate", "drain-same-session"]
+metadata = { "gc.run_target" = "gc.run-operator" }
 description = """
-Wait on the core drain manifest. Success requires every selected runnable
-anchor to be terminal-success or already closed. Failed, skipped, abandoned, or
-still-open anchors make implement fail and write the aggregate summary.
-Do not close the input convoy head. Summary path override is {{summary_path}}.
+Wait only on the core drain control bead and its `gc.drain_manifest.v1` rows.
+Success requires the drain control to be closed with `gc.drain_state=succeeded`
+and `gc.outcome=pass`, and every manifest row to have `status=succeeded` and
+`outcome_kind=pass` or a selected source anchor already closed with
+`gc.outcome=pass`. Failed, skipped, abandoned, or still-open manifest rows make
+implement fail and write the aggregate summary.
+
+Do not wait for or inspect downstream steps that depend on this bead, including
+summarize, workflow-finalize, or root workflow closure; those cannot progress
+until this bead closes. Do not close the input convoy head or the root workflow.
+On success, close only this wait step with `gc.outcome=pass`. Summary path
+override is {{summary_path}}.
 """
 
 [[steps]]
 id = "summarize"
 title = "Write implementation summary"
 needs = ["wait-for-drain"]
+metadata = { "gc.run_target" = "gc.run-operator" }
 description = """
 Write the aggregate implementation summary, including selected anchors, drain
 policy, item result classes, report paths, commit refs when available, and any
