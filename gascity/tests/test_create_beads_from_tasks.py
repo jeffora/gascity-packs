@@ -85,6 +85,29 @@ class CreateBeadsFromTasksTests(unittest.TestCase):
         with self.assertRaises(script.PlanError):
             script.parse_plan(script.extract_payload(text))
 
+    def test_metadata_normalizes_legacy_work_option_keys(self) -> None:
+        text = sample_tasks().replace(
+            "    epic: foundation\n",
+            """    epic: foundation
+    metadata:
+      gc.model: opus
+      gc.reasoning: high
+      gc.effort: medium
+      opt_model: sonnet
+      opt_effort: low
+""",
+            1,
+        )
+
+        plan = script.parse_plan(script.extract_payload(text))
+        schema = next(item for item in plan.beads if item.key == "schema")
+
+        self.assertEqual(schema.metadata["opt_model"], "sonnet")
+        self.assertEqual(schema.metadata["opt_effort"], "low")
+        self.assertNotIn("gc.model", schema.metadata)
+        self.assertNotIn("gc.reasoning", schema.metadata)
+        self.assertNotIn("gc.effort", schema.metadata)
+
     def test_dry_run_prints_gc_bd_commands_and_does_not_modify_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = pathlib.Path(tmp) / "tasks.md"
