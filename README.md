@@ -55,11 +55,13 @@ Browse the tree for the current set; each pack has its own README.
 - [gascity](./gascity) provides the `build-base` workflow contract and the
   default `build-basic` implementation.
 - [compound-engineering](./compound-engineering) imports `gascity` as `gc`
-  and implements `build-base` with vendored Compound Engineering skills.
+  and implements `build-base` with vendored Compound Engineering skills,
+  agent personas, and Gas City-native review/finalization expansions.
 - [superpowers](./superpowers) imports `gascity` as `gc` and implements
-  `build-base` with vendored Superpowers skills.
+  `build-base` with vendored Superpowers skills and Gas City-native
+  development/review expansions.
 - [bmad](./bmad) imports `gascity` as `gc` and implements `build-base` with
-  vendored BMAD Method skills.
+  vendored BMAD Method skills and Gas City-native story/review expansions.
 
 ### Slack packs (tiered)
 

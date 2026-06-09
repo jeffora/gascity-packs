@@ -1,5 +1,12 @@
-Use the vendored BMAD `bmad-quick-dev` skill at `{{pack_root}}/vendor/bmad-method/skills/bmad-quick-dev/SKILL.md`.
+Implement the approved story decomposition using drain policy {{drain_policy}},
+implementation target {{implementation_target}}, artifact root, and summary
+path supplied by the workflow. Work only on the assigned story beads or convoy
+members routed to this stage.
 
-When story-level implementation is more appropriate, use `{{pack_root}}/vendor/bmad-method/skills/bmad-dev-story/SKILL.md` as supporting guidance. Record the implementation summary path and outcome on the workflow root bead.
+Use the assigned BMAD story implementation skill for each implementation task.
+When upstream BMAD text asks for sub-agent/task handoff, represent that
+delegation as Gas City beads, convoys, or graph lanes rather than
+provider-native execution. Record the implementation summary path and outcome
+on the workflow root bead.
 
-Do not require BMAD to be installed separately; use the vendored skill files and their local steps.
+Do not invoke provider-native subagents or upstream BMAD runtime commands.

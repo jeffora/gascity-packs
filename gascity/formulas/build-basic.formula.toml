@@ -45,15 +45,38 @@ description_file = "../assets/workflows/build-basic/decompose.md"
 
 [[steps]]
 id = "implement"
-title = "Run build implementation"
+title = "Drain build implementation"
 needs = ["decompose"]
-metadata = { "gc.run_target" = "gc.implementation-worker" }
+condition = "{{drain_policy}} == separate"
+metadata = { "gc.run_target" = "{{implementation_target}}" }
 description_file = "../assets/workflows/build-basic/implement.md"
+
+[steps.drain]
+context = "separate"
+formula = "do-work"
+member_access = "exclusive"
+
+[[steps]]
+id = "implement-same-session"
+title = "Drain build implementation in one shared session"
+needs = ["decompose"]
+condition = "{{drain_policy}} == same-session"
+metadata = { "gc.run_target" = "{{implementation_target}}" }
+description_file = "../assets/workflows/build-basic/implement-same-session.md"
+
+[steps.drain]
+context = "shared"
+formula = "do-work-item"
+on_item_failure = "skip_remaining"
+member_access = "exclusive"
+
+[steps.drain.item]
+single_lane = true
 
 [[steps]]
 id = "review"
 title = "Run implementation review"
-needs = ["implement"]
+needs = ["implement", "implement-same-session"]
 metadata = { "gc.run_target" = "gc.implementation-reviewer" }
 description_file = "../assets/workflows/build-basic/review.md"
 

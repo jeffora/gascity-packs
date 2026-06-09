@@ -1,5 +1,10 @@
-Use the vendored BMAD `bmad-check-implementation-readiness` skill at `{{pack_root}}/vendor/bmad-method/skills/bmad-check-implementation-readiness/SKILL.md`.
+Use the assigned BMAD architecture skill materialized for this agent.
 
-Review the PRD and architecture for implementation readiness before decomposition. Treat readiness failures as blockers and record the readiness report path and outcome on the workflow root bead.
+Review the PRD and architecture handoff before epic/story decomposition. Confirm
+that the architecture output is complete enough for `bmad-create-epics-and-stories`
+to preserve requirement traceability and produce implementable stories.
 
-Do not require BMAD to be installed separately; use the vendored skill file and its local steps.
+Do not run `bmad-check-implementation-readiness` here; that BMAD skill runs
+after epics and stories exist.
+
+Do not invoke provider-native subagents or upstream BMAD runtime commands.

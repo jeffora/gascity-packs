@@ -1,0 +1,3 @@
+description = "Compound Engineering conditional code reviewer for previous PR comments"
+scope = "rig"
+fallback = true

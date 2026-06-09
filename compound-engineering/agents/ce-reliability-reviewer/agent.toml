@@ -1,0 +1,3 @@
+description = "Compound Engineering code reviewer for reliability"
+scope = "rig"
+fallback = true

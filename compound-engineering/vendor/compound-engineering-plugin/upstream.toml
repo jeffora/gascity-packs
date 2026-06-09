@@ -9,4 +9,5 @@ vendored_paths = [
   "plugins/compound-engineering/skills/ce-work",
   "plugins/compound-engineering/skills/ce-code-review",
   "plugins/compound-engineering/skills/ce-compound",
+  "plugins/compound-engineering/agents",
 ]

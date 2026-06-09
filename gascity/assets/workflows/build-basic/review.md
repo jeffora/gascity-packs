@@ -1,5 +1,9 @@
-Use the built-in Gas City implementation review loop.
+Use the built-in Gas City post-implementation review loop.
 
-If `build-run` already produced a clean review, verify and summarize that result. If review evidence is missing, run the generic review workflow against the implementation summary before closing.
+Run gap-analysis as one review lens alongside implementation review. Verify
+requirements coverage, plan/decomposition coverage, changed files, and test
+evidence in the same loop that synthesizes review findings and applies required
+fixes.
 
-Record the review report path and pass/fail outcome on the workflow root bead.
+Record the synthesized review report path and pass/fail outcome on the workflow
+root bead.

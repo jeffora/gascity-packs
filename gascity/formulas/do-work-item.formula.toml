@@ -3,6 +3,7 @@ Single-lane item implementation formula used only inside core shared drain.
 
 Launch inputs:
 - context_path: {{context_path}} (empty means no extra context bundle)
+- implementation_target: {{implementation_target}}
 """
 formula = "do-work-item"
 version = 1
@@ -16,8 +17,12 @@ single_lane = true
 description = "Optional context bundle path."
 default = ""
 
+[vars.implementation_target]
+description = "Role target for implementation work."
+default = "gc.implementation-worker"
+
 [[steps]]
 id = "implement-item"
 title = "Implement shared-drain item"
-metadata = { "gc.run_target" = "gc.implementation-worker" }
+metadata = { "gc.run_target" = "{{implementation_target}}" }
 description_file = "../assets/workflows/do-work-item/implement-item.md"

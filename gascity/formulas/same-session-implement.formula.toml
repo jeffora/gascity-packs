@@ -4,6 +4,7 @@ launches should use `implement --var drain_policy=same-session`.
 
 Launch inputs:
 - context_path: {{context_path}} (empty means no extra context bundle)
+- implementation_target: {{implementation_target}}
 """
 formula = "same-session-implement"
 version = 1
@@ -16,10 +17,14 @@ internal = true
 description = "Optional context bundle path."
 default = ""
 
+[vars.implementation_target]
+description = "Role target for implementation work."
+default = "gc.implementation-worker"
+
 [[steps]]
 id = "shared-drain"
 title = "Run core shared drain"
-metadata = { "gc.run_target" = "gc.implementation-worker" }
+metadata = { "gc.run_target" = "{{implementation_target}}" }
 description_file = "../assets/workflows/same-session-implement/shared-drain.md"
 
 [steps.drain]

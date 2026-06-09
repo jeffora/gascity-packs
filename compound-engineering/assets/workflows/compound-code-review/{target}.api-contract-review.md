@@ -1,0 +1,18 @@
+Review API contract risk with the installed Compound Engineering API-contract
+persona.
+
+This bead only runs after the cheap conditional gate selected API-contract
+review for this change. Inspect routes, serializers, event schemas, exported
+interfaces, or versioned contracts and return structured findings for
+synthesis. Do not re-run applicability as a no-op; skipped API-contract lanes
+are closed by the gate.
+
+Read `gc.build.code_review_context_path` from the workflow root. Write this lane
+artifact to `{{artifact_root}}/code-review/api-contract.md`. Close with
+`gc.outcome=pass`, `code_review.review_verdict=approve|iterate`, and
+`code_review.lane_report_path=<lane artifact path>`. Do not set
+`code_review.verdict` or `code_review.report_path`; the apply-review-findings
+lane owns the final loop verdict consumed by the approval check.
+
+Do not invoke provider-native subagents. You are the Gas City lane for this
+conditional persona.

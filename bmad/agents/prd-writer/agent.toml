@@ -1,0 +1,3 @@
+description = "BMAD PRD requirements writer"
+scope = "rig"
+fallback = true

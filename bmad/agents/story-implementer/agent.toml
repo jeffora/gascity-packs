@@ -1,0 +1,3 @@
+description = "BMAD story implementer and fix worker"
+scope = "rig"
+fallback = true

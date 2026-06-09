@@ -1,0 +1,86 @@
+description = """
+BMAD code-review expansion.
+
+This converts BMAD's parallel adversarial review layers into explicit Gas City
+review lanes, including gap analysis, with synthesis and fix application.
+"""
+formula = "bmad-code-review-flow"
+type = "expansion"
+version = 1
+contract = "graph.v2"
+
+[vars]
+[vars.implementation_target]
+description = "BMAD task implementation role used for the review-fix lane."
+default = "bmad.story-implementer"
+
+[[template]]
+id = "{target}.gather-bmad-review-context"
+title = "Gather BMAD review context"
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/bmad-code-review-flow/{target}.gather-bmad-review-context.md"
+
+[[template]]
+id = "{target}.bmad-code-review-loop"
+title = "Run BMAD code review until approved"
+needs = ["{target}.gather-bmad-review-context"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/bmad-code-review-flow/{target}.bmad-code-review-loop.md"
+
+[template.check]
+max_attempts = 6
+
+[template.check.check]
+mode = "exec"
+path = ".gc/scripts/checks/implementation-review-approved.sh"
+timeout = "10m"
+
+[[template.children]]
+id = "{target}.blind-hunter-review"
+title = "BMAD review: blind hunter"
+metadata = { "gc.run_target" = "bmad.blind-hunter-reviewer" }
+description_file = "../assets/workflows/bmad-code-review-flow/{target}.blind-hunter-review.md"
+
+[[template.children]]
+id = "{target}.edge-case-review"
+title = "BMAD review: edge case hunter"
+metadata = { "gc.run_target" = "bmad.edge-case-reviewer" }
+description_file = "../assets/workflows/bmad-code-review-flow/{target}.edge-case-review.md"
+
+[[template.children]]
+id = "{target}.acceptance-auditor-review"
+title = "BMAD review: acceptance auditor"
+metadata = { "gc.run_target" = "bmad.acceptance-auditor" }
+description_file = "../assets/workflows/bmad-code-review-flow/{target}.acceptance-auditor-review.md"
+
+[[template.children]]
+id = "{target}.gap-analysis-review"
+title = "BMAD review: gap analysis"
+metadata = { "gc.run_target" = "bmad.story-self-checker" }
+description_file = "../assets/workflows/bmad-code-review-flow/{target}.gap-analysis-review.md"
+
+[[template.children]]
+id = "{target}.synthesize-bmad-review"
+title = "Synthesize BMAD code review"
+needs = [
+  "{target}.blind-hunter-review",
+  "{target}.edge-case-review",
+  "{target}.acceptance-auditor-review",
+  "{target}.gap-analysis-review",
+]
+metadata = { "gc.run_target" = "bmad.bmad-review-synthesizer" }
+description_file = "../assets/workflows/bmad-code-review-flow/{target}.synthesize-bmad-review.md"
+
+[[template.children]]
+id = "{target}.apply-bmad-review-findings"
+title = "Apply BMAD code review findings"
+needs = ["{target}.synthesize-bmad-review"]
+metadata = { "gc.run_target" = "{implementation_target}", "gc.continuation_group" = "bmad-code-review-fixes" }
+description_file = "../assets/workflows/bmad-code-review-flow/{target}.apply-bmad-review-findings.md"
+
+[[template]]
+id = "{target}"
+title = "Finalize BMAD code review"
+needs = ["{target}.bmad-code-review-loop"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/bmad-code-review-flow/{target}.md"

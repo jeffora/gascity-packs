@@ -1,0 +1,23 @@
+description = """
+Compound Engineering item implementation formula for separate drain context.
+
+This runs one implementation convoy member through the vendored ce-work role on
+top of Gas City's source-anchor worktree lifecycle.
+"""
+formula = "compound-work"
+version = 1
+contract = "graph.v2"
+extends = ["do-work"]
+target_required = true
+
+[vars]
+[vars.implementation_target]
+description = "Compound Engineering implementation role."
+default = "compound-engineering.ce-work"
+
+[[steps]]
+id = "implement"
+title = "Implement Compound work item"
+needs = ["prepare-worktree"]
+metadata = { "gc.run_target" = "{{implementation_target}}" }
+description_file = "../assets/workflows/compound-work/implement.md"

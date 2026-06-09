@@ -1,0 +1,67 @@
+description = """
+Shared-session Superpowers implementation item formula.
+
+This converts the Superpowers plan task structure into explicit Gas City graph
+steps for one shared-drain implementation bead. The implementation bead carries
+the task scope; this formula carries the execution process.
+"""
+formula = "superpowers-development-item"
+version = 1
+contract = "graph.v2"
+extends = ["do-work-item"]
+target_required = true
+internal = true
+single_lane = true
+
+[vars]
+[vars.implementation_target]
+description = "Superpowers task implementation role."
+default = "superpowers.implementer"
+
+[[steps]]
+id = "implement-item"
+title = "Inspect Superpowers shared-drain task"
+metadata = { "gc.run_target" = "{{implementation_target}}", "gc.continuation_group" = "superpowers-task-{{issue}}" }
+description_file = "../assets/workflows/superpowers-development/implement-item.md"
+
+[[steps]]
+id = "write-failing-test"
+title = "Write failing test for Superpowers task"
+needs = ["implement-item"]
+metadata = { "gc.run_target" = "{{implementation_target}}", "gc.continuation_group" = "superpowers-task-{{issue}}" }
+description_file = "../assets/workflows/superpowers-development/write-failing-test.md"
+
+[[steps]]
+id = "verify-test-fails"
+title = "Verify Superpowers task test fails"
+needs = ["write-failing-test"]
+metadata = { "gc.run_target" = "{{implementation_target}}", "gc.continuation_group" = "superpowers-task-{{issue}}" }
+description_file = "../assets/workflows/superpowers-development/verify-test-fails.md"
+
+[[steps]]
+id = "implement-change"
+title = "Implement Superpowers task change"
+needs = ["verify-test-fails"]
+metadata = { "gc.run_target" = "{{implementation_target}}", "gc.continuation_group" = "superpowers-task-{{issue}}" }
+description_file = "../assets/workflows/superpowers-development/implement-change.md"
+
+[[steps]]
+id = "verify-test-passes"
+title = "Verify Superpowers task tests pass"
+needs = ["implement-change"]
+metadata = { "gc.run_target" = "{{implementation_target}}", "gc.continuation_group" = "superpowers-task-{{issue}}" }
+description_file = "../assets/workflows/superpowers-development/verify-test-passes.md"
+
+[[steps]]
+id = "record-item-result"
+title = "Record Superpowers task result"
+needs = ["verify-test-passes"]
+metadata = { "gc.run_target" = "{{implementation_target}}", "gc.continuation_group" = "superpowers-task-{{issue}}" }
+description_file = "../assets/workflows/superpowers-development/record-item-result.md"
+
+[[steps]]
+id = "close-source-anchor"
+title = "Close Superpowers shared-drain task"
+needs = ["record-item-result"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/superpowers-development/close-source-anchor.md"

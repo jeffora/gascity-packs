@@ -14,37 +14,88 @@ target_required = true
 name = "superpowers-build"
 description = "Run build-base with vendored Superpowers brainstorming, planning, execution, review, and finalization skills."
 
+[vars]
+[vars.implementation_target]
+description = "Superpowers task implementation role."
+default = "superpowers.implementer"
+
+[vars.brainstorming_approval_mode]
+description = "Superpowers brainstorming approval mode: autonomous or interactive."
+default = "autonomous"
+
 [[steps]]
 id = "requirements"
 title = "Superpowers brainstorm requirements"
 needs = ["prepare"]
-metadata = { "gc.run_target" = "gc.requirements-planner" }
+metadata = { "gc.run_target" = "superpowers.brainstorming" }
+expand = "superpowers-brainstorming"
+expand_vars = { brainstorming_approval_mode = "{{brainstorming_approval_mode}}" }
 description_file = "../assets/workflows/superpowers-build/requirements.md"
 
 [[steps]]
 id = "plan"
 title = "Superpowers write plan"
 needs = ["requirements"]
-metadata = { "gc.run_target" = "gc.design-author" }
+metadata = { "gc.run_target" = "superpowers.writing-plans" }
 description_file = "../assets/workflows/superpowers-build/plan.md"
 
 [[steps]]
+id = "plan-review"
+title = "Superpowers plan review"
+needs = ["plan"]
+metadata = { "gc.run_target" = "superpowers.plan-reviewer" }
+expand = "superpowers-plan-review"
+description_file = "../assets/workflows/superpowers-build/plan-review.md"
+
+[[steps]]
+id = "decompose"
+title = "Create Superpowers implementation convoy"
+needs = ["plan-review"]
+metadata = { "gc.run_target" = "gc.task-decomposer" }
+description_file = "../assets/workflows/superpowers-build/decompose.md"
+
+[[steps]]
 id = "implement"
-title = "Superpowers execute plan"
+title = "Drain Superpowers development"
 needs = ["decompose"]
-metadata = { "gc.run_target" = "gc.implementation-worker" }
+condition = "{{drain_policy}} == separate"
+metadata = { "gc.run_target" = "{{implementation_target}}" }
 description_file = "../assets/workflows/superpowers-build/implement.md"
+
+[steps.drain]
+context = "separate"
+formula = "superpowers-development"
+member_access = "exclusive"
+
+[[steps]]
+id = "implement-same-session"
+title = "Drain Superpowers development in one shared session"
+needs = ["decompose"]
+condition = "{{drain_policy}} == same-session"
+metadata = { "gc.run_target" = "{{implementation_target}}" }
+description_file = "../assets/workflows/superpowers-build/implement-same-session.md"
+
+[steps.drain]
+context = "shared"
+formula = "superpowers-development-item"
+on_item_failure = "skip_remaining"
+member_access = "exclusive"
+
+[steps.drain.item]
+single_lane = true
 
 [[steps]]
 id = "review"
 title = "Superpowers request code review"
-needs = ["implement"]
-metadata = { "gc.run_target" = "gc.implementation-reviewer" }
+needs = ["implement", "implement-same-session"]
+metadata = { "gc.run_target" = "superpowers.code-reviewer" }
+expand = "superpowers-code-review"
+expand_vars = { implementation_target = "{{implementation_target}}" }
 description_file = "../assets/workflows/superpowers-build/review.md"
 
 [[steps]]
 id = "finalize"
 title = "Superpowers finish branch"
 needs = ["review"]
-metadata = { "gc.run_target" = "gc.run-operator" }
+metadata = { "gc.run_target" = "superpowers.finisher" }
 description_file = "../assets/workflows/superpowers-build/finalize.md"

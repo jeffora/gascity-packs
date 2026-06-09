@@ -1,0 +1,51 @@
+description = """
+Superpowers plan-review expansion.
+
+This converts the Superpowers plan document reviewer prompt into a Gas
+City-native review loop.
+"""
+formula = "superpowers-plan-review"
+type = "expansion"
+version = 1
+contract = "graph.v2"
+
+[[template]]
+id = "{target}.setup-superpowers-plan-review"
+title = "Prepare Superpowers plan review"
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/superpowers-plan-review/{target}.setup-superpowers-plan-review.md"
+
+[[template]]
+id = "{target}.superpowers-plan-review-loop"
+title = "Review Superpowers plan until approved"
+needs = ["{target}.setup-superpowers-plan-review"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/superpowers-plan-review/{target}.superpowers-plan-review-loop.md"
+
+[template.check]
+max_attempts = 6
+
+[template.check.check]
+mode = "exec"
+path = ".gc/scripts/checks/design-review-approved.sh"
+timeout = "10m"
+
+[[template.children]]
+id = "{target}.plan-document-review"
+title = "Superpowers plan document review"
+metadata = { "gc.run_target" = "superpowers.plan-reviewer" }
+description_file = "../assets/workflows/superpowers-plan-review/{target}.plan-document-review.md"
+
+[[template.children]]
+id = "{target}.apply-plan-feedback"
+title = "Apply Superpowers plan feedback"
+needs = ["{target}.plan-document-review"]
+metadata = { "gc.run_target" = "superpowers.writing-plans", "gc.continuation_group" = "superpowers-plan-review-fixes" }
+description_file = "../assets/workflows/superpowers-plan-review/{target}.apply-plan-feedback.md"
+
+[[template]]
+id = "{target}"
+title = "Finalize approved Superpowers plan review"
+needs = ["{target}.superpowers-plan-review-loop"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/superpowers-plan-review/{target}.md"

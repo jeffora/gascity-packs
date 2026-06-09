@@ -1,5 +1,14 @@
-Use the vendored Compound Engineering `ce-work` skill at `{{pack_root}}/vendor/compound-engineering-plugin/skills/ce-work/SKILL.md`.
+Use the assigned Compound Engineering work skill materialized for this agent.
 
-Implement the decomposed work with the build-base drain policy and iteration limits. Keep the Compound Engineering working discipline, but record the implementation summary path and outcome on the workflow root bead.
+Implement the approved decomposition using drain policy {{drain_policy}},
+implementation target {{implementation_target}}, artifact root, and summary
+path supplied by the workflow. Work only on the assigned implementation beads
+or convoy members routed to this stage.
 
-Do not require the upstream plugin to be installed; use the vendored skill file and its local references.
+Keep the Compound Engineering working discipline for each implementation task.
+When upstream Compound Engineering text asks for subagents, represent that
+delegation as Gas City beads, convoys, or graph lanes rather than
+provider-native execution. Record the implementation summary path and outcome
+on the workflow root bead.
+
+Do not invoke provider-native subagents or upstream plugin runtime commands.

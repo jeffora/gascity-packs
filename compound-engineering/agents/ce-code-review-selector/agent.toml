@@ -1,0 +1,3 @@
+description = "Compound Engineering code-review selector and conditional lane gate"
+scope = "rig"
+fallback = true

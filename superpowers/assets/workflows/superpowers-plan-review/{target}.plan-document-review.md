@@ -1,0 +1,16 @@
+Review the plan with the installed Superpowers planning-review guidance.
+
+Check whether the plan is implementable, traceable to the requirements, testable, and scoped to the requested outcome. Return findings in the design-review artifact format consumed by the approval check.
+
+Read the plan-review context from workflow root metadata
+`gc.build.plan_review_context_path`. Write the plan-review report to workflow
+root metadata path `gc.build.plan_review_report_path`, which should be
+`<artifact_root>/plan-review-report.md`.
+
+Close with `gc.outcome=pass`,
+`design_review.review_verdict=approve|iterate`, and
+`design_review.output_path=<report path>`. Do not set
+`design_review.verdict`; the feedback lane owns the loop verdict consumed by
+the approval check.
+
+Do not invoke provider-native subagents. You are the Gas City lane for this prompt.

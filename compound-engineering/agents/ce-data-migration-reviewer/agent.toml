@@ -1,0 +1,3 @@
+description = "Compound Engineering conditional code reviewer for data migrations"
+scope = "rig"
+fallback = true

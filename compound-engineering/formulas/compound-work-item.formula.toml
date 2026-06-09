@@ -1,0 +1,24 @@
+description = """
+Compound Engineering item implementation formula for shared drain context.
+
+This runs one serialized convoy member through the vendored ce-work role
+without creating an isolated source-anchor worktree.
+"""
+formula = "compound-work-item"
+version = 1
+contract = "graph.v2"
+extends = ["do-work-item"]
+target_required = true
+internal = true
+single_lane = true
+
+[vars]
+[vars.implementation_target]
+description = "Compound Engineering implementation role."
+default = "compound-engineering.ce-work"
+
+[[steps]]
+id = "implement-item"
+title = "Implement Compound shared-drain item"
+metadata = { "gc.run_target" = "{{implementation_target}}" }
+description_file = "../assets/workflows/compound-work-item/implement-item.md"

@@ -1,0 +1,3 @@
+description = "Compound Engineering reviewer for PR/comment resolution"
+scope = "rig"
+fallback = true

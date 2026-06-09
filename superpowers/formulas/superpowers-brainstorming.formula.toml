@@ -1,0 +1,100 @@
+description = """
+Superpowers brainstorming expansion.
+
+This converts the stock Superpowers brainstorming and spec-review loop into
+explicit Gas City graph lanes. The graph preserves the design approval loop
+before the written-spec review loop while keeping the vendored companion docs
+and review guidance available through the provider skill directory.
+"""
+formula = "superpowers-brainstorming"
+type = "expansion"
+version = 1
+contract = "graph.v2"
+
+[vars]
+[vars.brainstorming_approval_mode]
+description = "Superpowers brainstorming approval mode: autonomous or interactive."
+default = "autonomous"
+
+[[template]]
+id = "{target}.setup-superpowers-brainstorming"
+title = "Prepare Superpowers brainstorming"
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/superpowers-brainstorming/{target}.setup-superpowers-brainstorming.md"
+
+[[template]]
+id = "{target}.superpowers-design-approval-loop"
+title = "Brainstorm Superpowers design until approved"
+needs = ["{target}.setup-superpowers-brainstorming"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/superpowers-brainstorming/{target}.superpowers-design-approval-loop.md"
+
+[template.check]
+max_attempts = 6
+
+[template.check.check]
+mode = "exec"
+path = ".gc/scripts/checks/design-review-approved.sh"
+timeout = "10m"
+
+[[template.children]]
+id = "{target}.brainstorm-design"
+title = "Superpowers brainstorm design"
+metadata = { "gc.run_target" = "superpowers.brainstorming" }
+description_file = "../assets/workflows/superpowers-brainstorming/{target}.brainstorm-design.md"
+
+[[template.children]]
+id = "{target}.confirm-design-approval"
+title = "Confirm Superpowers design approval"
+needs = ["{target}.brainstorm-design"]
+metadata = { "gc.run_target" = "superpowers.brainstorming", "gc.continuation_group" = "superpowers-design-fixes" }
+description_file = "../assets/workflows/superpowers-brainstorming/{target}.confirm-design-approval.md"
+
+[[template]]
+id = "{target}.superpowers-written-spec-loop"
+title = "Write and review Superpowers spec until approved"
+needs = ["{target}.superpowers-design-approval-loop"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/superpowers-brainstorming/{target}.superpowers-written-spec-loop.md"
+
+[template.check]
+max_attempts = 6
+
+[template.check.check]
+mode = "exec"
+path = ".gc/scripts/checks/design-review-approved.sh"
+timeout = "10m"
+
+[[template.children]]
+id = "{target}.write-requirements-spec"
+title = "Write Superpowers requirements spec"
+metadata = { "gc.run_target" = "superpowers.brainstorming" }
+description_file = "../assets/workflows/superpowers-brainstorming/{target}.write-requirements-spec.md"
+
+[[template.children]]
+id = "{target}.review-written-spec"
+title = "Superpowers spec document review"
+needs = ["{target}.write-requirements-spec"]
+metadata = { "gc.run_target" = "superpowers.spec-reviewer" }
+description_file = "../assets/workflows/superpowers-brainstorming/{target}.review-written-spec.md"
+
+[[template.children]]
+id = "{target}.apply-spec-feedback"
+title = "Apply Superpowers spec feedback"
+needs = ["{target}.review-written-spec"]
+metadata = { "gc.run_target" = "superpowers.brainstorming", "gc.continuation_group" = "superpowers-spec-fixes" }
+description_file = "../assets/workflows/superpowers-brainstorming/{target}.apply-spec-feedback.md"
+
+[[template.children]]
+id = "{target}.confirm-spec-approval"
+title = "Confirm Superpowers spec approval"
+needs = ["{target}.apply-spec-feedback"]
+metadata = { "gc.run_target" = "superpowers.brainstorming", "gc.continuation_group" = "superpowers-spec-fixes" }
+description_file = "../assets/workflows/superpowers-brainstorming/{target}.confirm-spec-approval.md"
+
+[[template]]
+id = "{target}"
+title = "Finalize approved Superpowers requirements"
+needs = ["{target}.superpowers-written-spec-loop"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/superpowers-brainstorming/{target}.md"

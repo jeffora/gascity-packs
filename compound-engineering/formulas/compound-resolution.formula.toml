@@ -1,0 +1,38 @@
+description = """
+Compound Engineering final resolution expansion.
+
+This converts ce-compound's parallel resolution synthesis into explicit Gas
+City lanes. The finalizer collects artifacts, verifies unresolved review state,
+and records a single build-base finalize result.
+"""
+formula = "compound-resolution"
+type = "expansion"
+version = 1
+contract = "graph.v2"
+
+[[template]]
+id = "{target}.inventory-artifacts"
+title = "Inventory Compound Engineering artifacts"
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/compound-resolution/{target}.inventory-artifacts.md"
+
+[[template]]
+id = "{target}.review-resolution"
+title = "Verify Compound Engineering review resolution"
+needs = ["{target}.inventory-artifacts"]
+metadata = { "gc.run_target" = "compound-engineering.ce-pr-comment-resolver" }
+description_file = "../assets/workflows/compound-resolution/{target}.review-resolution.md"
+
+[[template]]
+id = "{target}.synthesize-resolution"
+title = "Synthesize Compound Engineering resolution"
+needs = ["{target}.review-resolution"]
+metadata = { "gc.run_target" = "compound-engineering.ce-compound" }
+description_file = "../assets/workflows/compound-resolution/{target}.synthesize-resolution.md"
+
+[[template]]
+id = "{target}"
+title = "Finalize Compound Engineering build result"
+needs = ["{target}.synthesize-resolution"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/compound-resolution/{target}.md"

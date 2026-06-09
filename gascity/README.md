@@ -86,21 +86,96 @@ and `gc.publisher`.
 stable stage sequence that concrete build methodology packs can override:
 
 ```text
-prepare -> requirements -> plan -> plan-review -> decompose -> implement ->
-review -> finalize -> publish
+prepare -> requirements -> plan -> plan-review -> decompose ->
+implement | implement-same-session -> review -> finalize -> publish
 ```
 
 `build-base` is internal and should not be launched directly. Use
 `build-basic` for the default Gas City implementation. It maps the base stages
 onto the existing Gas City requirements, implementation-plan, design-review,
-create-beads, build-run, review, and publish helpers.
+create-beads, implementation, post-implementation review, and publish helpers.
+Gap-analysis is a review lens inside the post-implementation review loop, so
+coverage findings are synthesized and fixed with the rest of the review output.
 
 Third-party methodology packs can extend `build-base` and override only the
-stages they need. The repository currently ships concrete vendored
-implementations for Compound Engineering, Superpowers, and BMAD Method.
-Those packs import this pack as `gc` internally, so users can import one
-methodology pack at city scope while keeping the existing `gc.*` role override
-surface for rig agents.
+stages they need. For implementation, packs should keep the Gas City drain
+lifecycle and point the two static drain steps at pack-specific item formulas
+that extend `do-work` and `do-work-item`. The repository currently ships
+concrete vendored implementations for Compound Engineering, Superpowers, and
+BMAD Method. Those packs import this pack as `gc` internally, so users can
+import one methodology pack at city scope while keeping the existing `gc.*`
+role override surface for rig agents.
+
+Third-party packs should treat upstream agent definitions, prompts, and skills
+as vendored methodology inputs, not as runtime authority. When an upstream
+methodology says to spawn subagents, dispatch a task tool, or run a plugin
+command, the pack should convert that shape into a Gas City formula or expansion
+with explicit `gc.*` lanes. The model may read the upstream persona or prompt
+file for behavior, but work routing, retries, persistence, and fanout/fanin must
+remain in the Gas City graph.
+
+## Build Flow
+
+`build-base` is the virtual contract. `build-basic` is the concrete Gas City
+implementation that demonstrates the override surface without vendoring a
+third-party methodology.
+
+```mermaid
+flowchart TD
+    classDef base fill:#eef2ff,stroke:#4f46e5,color:#111827;
+    classDef basic fill:#ecfdf5,stroke:#059669,color:#111827;
+    classDef infra fill:#fff7ed,stroke:#d97706,color:#111827;
+    classDef terminal fill:#f9fafb,stroke:#6b7280,color:#111827;
+
+    Start["Launch build-basic<br/>or child of build-base"]:::terminal --> Prepare["prepare<br/>build-base contract"]:::base
+    Prepare --> Requirements["requirements<br/>build-basic override<br/>gc.requirements-planner"]:::basic
+    Requirements --> Plan["plan<br/>build-basic override<br/>gc.design-author"]:::basic
+    Plan --> PlanReview["plan-review<br/>build-basic design review"]:::basic
+    PlanReview --> PlanGate{"plan approved?<br/>design-review contract"}:::infra
+    PlanGate -->|no: revise plan/review artifact| Plan
+    PlanGate -->|yes| Decompose["decompose<br/>build-basic task beads"]:::basic
+    Decompose --> Convoy["implementation convoy<br/>bead dependency graph"]:::infra
+    Convoy --> DrainChoice{"drain policy<br/>Gas City drain"}:::infra
+    DrainChoice -->|separate| DrainSeparate["separate drain<br/>parallel by convoy deps"]:::infra
+    DrainChoice -->|same-session| DrainShared["same-session drain<br/>single worker lane"]:::infra
+
+    subgraph ItemFormula["do-work item formulas: one formula instance per implementation bead"]
+        direction TB
+        SeparatePrep["prepare-worktree<br/>do-work"]:::base --> Implement["implement owned work<br/>gc.implementation-worker"]:::basic
+        SharedImplement["implement shared item<br/>do-work-item"]:::base
+        Implement --> CloseItem["close source anchor<br/>do-work"]:::base
+    end
+
+    DrainSeparate --> SeparatePrep
+    DrainShared --> SharedImplement
+    CloseItem --> DrainFanIn["fan in<br/>drain waits for all item roots"]:::infra
+    SharedImplement --> DrainFanIn
+
+    DrainFanIn --> Review["review<br/>build-basic implementation review"]:::basic
+
+    subgraph ReviewLoop["post-implementation review loop: build-basic single-lane default"]
+        direction TB
+        Review --> ReviewLens["implementation review<br/>single reviewer lane"]:::basic
+        ReviewLens --> ReviewReport["synthesize findings and required fixes"]:::basic
+        ReviewReport --> ApplyFixes["apply required fixes when needed"]:::basic
+        ApplyFixes --> ReviewGate{"implementation approved?<br/>review contract"}:::infra
+        ReviewGate -->|no: fix and re-review| ReviewLens
+        ReviewGate -->|yes| ReviewDone["review approved"]:::basic
+    end
+
+    ReviewDone --> Finalize["finalize<br/>build-basic summary"]:::basic
+    Finalize --> Publish["publish<br/>build-basic or build-base no-op/push/PR"]:::basic
+    Publish --> Done["workflow complete"]:::terminal
+```
+
+Blue nodes are the base contract or inherited item lifecycle, green nodes are
+the concrete `build-basic` implementation, and amber nodes are Gas City graph,
+convoy, or drain infrastructure. Concrete methodology packs extend the same
+shape: they can override requirements, planning, review fanout, item formulas,
+or finalization while preserving the convoy/drain/fan-in mechanics. The
+`build-basic` review step is intentionally single-lane; packs such as
+Superpowers, Compound Engineering, and BMAD replace it with expansion formulas
+whose reviewer beads fan out before synthesis.
 
 ## Stable Workflow Override Interface
 
@@ -372,52 +447,54 @@ must still produce the `tasks.md` shape consumed by
 `assets/scripts/create_beads_from_tasks.py` and record the created convoy
 metadata expected by downstream build dispatch.
 
-### Build Run
+### Post-Implementation Review
 
-Use this when the overall build loop needs different sequencing around
-implementation, gap analysis, review, fixes, or publish.
+Use this when the build needs different post-implementation review evidence,
+review lanes, synthesis, or fix policy. Gap-analysis belongs in this review
+fanout instead of running as a separate lifecycle stage.
 
 Stable basic override:
-`assets/workflows/build-run/review-loop.md`
+`assets/workflows/build-basic/review.md`
 
 Stable advanced steps:
-`build-run` steps `implement-initial`, `gap-loop`, `review-loop`, `publish`
+`build-base` step `review`
 
-Basic example: tune review-loop evidence requirements.
+Basic example: tune review evidence requirements.
 
-Create `assets/workflows/build-run/review-loop.md`:
+Create `assets/workflows/build-basic/review.md`:
 
 ```markdown
 Run implementation review with local release criteria.
 
-- Include the implementation summary, gap-analysis report, changed files, and
+- Include the implementation summary, requirements coverage, changed files, and
   test commands in the review context.
 - Treat missing migration rollback notes as blocking for persisted metadata or
   schema changes.
 - Require `make test-fast-parallel` evidence when Go code changed, unless the
   implementation summary explains why a narrower test is sufficient.
-- If review fails, the fix convoy must address only blocking findings, not
+- If review fails, the fix pass must address only blocking findings, not
   optional cleanup.
 ```
 
 Advanced example: replace local review with an N-wide review and synthesize
 loop.
 
-Copy `build-run.formula.toml` and replace `review-loop`:
+Override the `review` stage in a concrete child of `build-base`:
 
 ```toml
 [[steps]]
-id = "review-loop"
+id = "review"
 title = "Run company review quorum"
-needs = ["gap-loop"]
+needs = ["implement"]
 expand = "company-review-n-wide"
 metadata = { "gc.run_target" = "gc.review-synthesizer" }
 ```
 
 The expansion can run several independent reviewers, synthesize required
-findings, open a fix convoy, and loop. Its final output must be compatible with
-the base build-run expectation: pass means publish may run; fail means the
-workflow records actionable blocking findings.
+findings, run the required fix pass, and loop. Include a requirements coverage
+lane in the quorum so gap-analysis findings are handled with the rest of review.
+Its final output must be compatible with the base build expectation: pass means
+finalize may run; fail means the workflow records actionable blocking findings.
 
 ### Direct Implementation
 

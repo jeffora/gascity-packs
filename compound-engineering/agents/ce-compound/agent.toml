@@ -1,0 +1,3 @@
+description = "Compound Engineering final resolution synthesizer"
+scope = "rig"
+fallback = true

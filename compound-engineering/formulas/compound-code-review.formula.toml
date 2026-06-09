@@ -1,0 +1,257 @@
+description = """
+Compound Engineering implementation-review expansion.
+
+This converts the ce-code-review persona roster into explicit Gas City review
+lanes, including a gap-analysis lane and cheap selector gates for conditional
+reviewers, with synthesis and fix application. The upstream reviewer
+definitions are vendored as reference prompts; no provider-native subagents are
+invoked.
+"""
+formula = "compound-code-review"
+type = "expansion"
+version = 1
+contract = "graph.v2"
+
+[vars]
+[vars.implementation_target]
+description = "Compound Engineering task implementation role used for the review-fix lane."
+default = "compound-engineering.ce-work"
+
+[[template]]
+id = "{target}.setup-compound-code-review"
+title = "Prepare Compound Engineering code review"
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/compound-code-review/{target}.setup-compound-code-review.md"
+
+[[template]]
+id = "{target}.select-compound-reviewers"
+title = "Select Compound Engineering conditional reviewers"
+needs = ["{target}.setup-compound-code-review"]
+metadata = { "gc.run_target" = "compound-engineering.ce-code-review-selector" }
+description_file = "../assets/workflows/compound-code-review/{target}.select-compound-reviewers.md"
+
+[[template]]
+id = "{target}.compound-code-review-loop"
+title = "Run Compound Engineering code review lanes until approved"
+needs = ["{target}.select-compound-reviewers"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/compound-code-review/{target}.compound-code-review-loop.md"
+
+[template.check]
+max_attempts = 8
+
+[template.check.check]
+mode = "exec"
+path = ".gc/scripts/checks/implementation-review-approved.sh"
+timeout = "10m"
+
+[[template.children]]
+id = "{target}.correctness-review"
+title = "Compound code review: correctness"
+metadata = { "gc.run_target" = "compound-engineering.ce-correctness-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.correctness-review.md"
+
+[[template.children]]
+id = "{target}.testing-review"
+title = "Compound code review: testing"
+metadata = { "gc.run_target" = "compound-engineering.ce-testing-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.testing-review.md"
+
+[[template.children]]
+id = "{target}.maintainability-review"
+title = "Compound code review: maintainability"
+metadata = { "gc.run_target" = "compound-engineering.ce-maintainability-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.maintainability-review.md"
+
+[[template.children]]
+id = "{target}.standards-review"
+title = "Compound code review: project standards"
+metadata = { "gc.run_target" = "compound-engineering.ce-project-standards-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.standards-review.md"
+
+[[template.children]]
+id = "{target}.agent-native-review"
+title = "Compound code review: agent-native parity"
+metadata = { "gc.run_target" = "compound-engineering.ce-agent-native-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.agent-native-review.md"
+
+[[template.children]]
+id = "{target}.learnings-research"
+title = "Compound code review: learnings research"
+metadata = { "gc.run_target" = "compound-engineering.ce-learnings-researcher" }
+description_file = "../assets/workflows/compound-code-review/{target}.learnings-research.md"
+
+[[template.children]]
+id = "{target}.security-review-gate"
+title = "Gate Compound code review: security"
+metadata = { "gc.run_target" = "compound-engineering.ce-code-review-selector", "ce.review_key" = "security", "ce.review_step_suffix" = "security-review", "ce.review_artifact_name" = "security.md" }
+description_file = "../assets/workflows/compound-code-review/{target}.conditional-review-gate.md"
+
+[[template.children]]
+id = "{target}.security-review"
+title = "Compound code review: security"
+needs = ["{target}.security-review-gate"]
+metadata = { "gc.run_target" = "compound-engineering.ce-security-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.security-review.md"
+
+[[template.children]]
+id = "{target}.performance-review-gate"
+title = "Gate Compound code review: performance"
+metadata = { "gc.run_target" = "compound-engineering.ce-code-review-selector", "ce.review_key" = "performance", "ce.review_step_suffix" = "performance-review", "ce.review_artifact_name" = "performance.md" }
+description_file = "../assets/workflows/compound-code-review/{target}.conditional-review-gate.md"
+
+[[template.children]]
+id = "{target}.performance-review"
+title = "Compound code review: performance"
+needs = ["{target}.performance-review-gate"]
+metadata = { "gc.run_target" = "compound-engineering.ce-performance-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.performance-review.md"
+
+[[template.children]]
+id = "{target}.api-contract-review-gate"
+title = "Gate Compound code review: API contract"
+metadata = { "gc.run_target" = "compound-engineering.ce-code-review-selector", "ce.review_key" = "api-contract", "ce.review_step_suffix" = "api-contract-review", "ce.review_artifact_name" = "api-contract.md" }
+description_file = "../assets/workflows/compound-code-review/{target}.conditional-review-gate.md"
+
+[[template.children]]
+id = "{target}.api-contract-review"
+title = "Compound code review: API contract"
+needs = ["{target}.api-contract-review-gate"]
+metadata = { "gc.run_target" = "compound-engineering.ce-api-contract-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.api-contract-review.md"
+
+[[template.children]]
+id = "{target}.data-migration-review-gate"
+title = "Gate Compound code review: data migration"
+metadata = { "gc.run_target" = "compound-engineering.ce-code-review-selector", "ce.review_key" = "data-migration", "ce.review_step_suffix" = "data-migration-review", "ce.review_artifact_name" = "data-migration.md" }
+description_file = "../assets/workflows/compound-code-review/{target}.conditional-review-gate.md"
+
+[[template.children]]
+id = "{target}.data-migration-review"
+title = "Compound code review: data migration"
+needs = ["{target}.data-migration-review-gate"]
+metadata = { "gc.run_target" = "compound-engineering.ce-data-migration-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.data-migration-review.md"
+
+[[template.children]]
+id = "{target}.reliability-review-gate"
+title = "Gate Compound code review: reliability"
+metadata = { "gc.run_target" = "compound-engineering.ce-code-review-selector", "ce.review_key" = "reliability", "ce.review_step_suffix" = "reliability-review", "ce.review_artifact_name" = "reliability.md" }
+description_file = "../assets/workflows/compound-code-review/{target}.conditional-review-gate.md"
+
+[[template.children]]
+id = "{target}.reliability-review"
+title = "Compound code review: reliability"
+needs = ["{target}.reliability-review-gate"]
+metadata = { "gc.run_target" = "compound-engineering.ce-reliability-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.reliability-review.md"
+
+[[template.children]]
+id = "{target}.adversarial-review-gate"
+title = "Gate Compound code review: adversarial"
+metadata = { "gc.run_target" = "compound-engineering.ce-code-review-selector", "ce.review_key" = "adversarial", "ce.review_step_suffix" = "adversarial-review", "ce.review_artifact_name" = "adversarial.md" }
+description_file = "../assets/workflows/compound-code-review/{target}.conditional-review-gate.md"
+
+[[template.children]]
+id = "{target}.adversarial-review"
+title = "Compound code review: adversarial"
+needs = ["{target}.adversarial-review-gate"]
+metadata = { "gc.run_target" = "compound-engineering.ce-adversarial-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.adversarial-review.md"
+
+[[template.children]]
+id = "{target}.previous-comments-review-gate"
+title = "Gate Compound code review: previous comments"
+metadata = { "gc.run_target" = "compound-engineering.ce-code-review-selector", "ce.review_key" = "previous-comments", "ce.review_step_suffix" = "previous-comments-review", "ce.review_artifact_name" = "previous-comments.md" }
+description_file = "../assets/workflows/compound-code-review/{target}.conditional-review-gate.md"
+
+[[template.children]]
+id = "{target}.previous-comments-review"
+title = "Compound code review: previous comments"
+needs = ["{target}.previous-comments-review-gate"]
+metadata = { "gc.run_target" = "compound-engineering.ce-previous-comments-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.previous-comments-review.md"
+
+[[template.children]]
+id = "{target}.julik-frontend-races-review-gate"
+title = "Gate Compound code review: frontend races"
+metadata = { "gc.run_target" = "compound-engineering.ce-code-review-selector", "ce.review_key" = "julik-frontend-races", "ce.review_step_suffix" = "julik-frontend-races-review", "ce.review_artifact_name" = "julik-frontend-races.md" }
+description_file = "../assets/workflows/compound-code-review/{target}.conditional-review-gate.md"
+
+[[template.children]]
+id = "{target}.julik-frontend-races-review"
+title = "Compound code review: frontend races"
+needs = ["{target}.julik-frontend-races-review-gate"]
+metadata = { "gc.run_target" = "compound-engineering.ce-julik-frontend-races-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.julik-frontend-races-review.md"
+
+[[template.children]]
+id = "{target}.swift-ios-review-gate"
+title = "Gate Compound code review: Swift iOS"
+metadata = { "gc.run_target" = "compound-engineering.ce-code-review-selector", "ce.review_key" = "swift-ios", "ce.review_step_suffix" = "swift-ios-review", "ce.review_artifact_name" = "swift-ios.md" }
+description_file = "../assets/workflows/compound-code-review/{target}.conditional-review-gate.md"
+
+[[template.children]]
+id = "{target}.swift-ios-review"
+title = "Compound code review: Swift iOS"
+needs = ["{target}.swift-ios-review-gate"]
+metadata = { "gc.run_target" = "compound-engineering.ce-swift-ios-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.swift-ios-review.md"
+
+[[template.children]]
+id = "{target}.deployment-verification-gate"
+title = "Gate Compound code review: deployment verification"
+metadata = { "gc.run_target" = "compound-engineering.ce-code-review-selector", "ce.review_key" = "deployment-verification", "ce.review_step_suffix" = "deployment-verification", "ce.review_artifact_name" = "deployment-verification.md" }
+description_file = "../assets/workflows/compound-code-review/{target}.conditional-review-gate.md"
+
+[[template.children]]
+id = "{target}.deployment-verification"
+title = "Compound code review: deployment verification"
+needs = ["{target}.deployment-verification-gate"]
+metadata = { "gc.run_target" = "compound-engineering.ce-deployment-verification-agent" }
+description_file = "../assets/workflows/compound-code-review/{target}.deployment-verification.md"
+
+[[template.children]]
+id = "{target}.gap-analysis-review"
+title = "Compound code review: gap analysis"
+metadata = { "gc.run_target" = "compound-engineering.ce-coherence-reviewer" }
+description_file = "../assets/workflows/compound-code-review/{target}.gap-analysis-review.md"
+
+[[template.children]]
+id = "{target}.synthesize-code-review"
+title = "Synthesize Compound Engineering code review"
+needs = [
+  "{target}.correctness-review",
+  "{target}.testing-review",
+  "{target}.maintainability-review",
+  "{target}.standards-review",
+  "{target}.agent-native-review",
+  "{target}.learnings-research",
+  "{target}.security-review",
+  "{target}.performance-review",
+  "{target}.api-contract-review",
+  "{target}.data-migration-review",
+  "{target}.reliability-review",
+  "{target}.adversarial-review",
+  "{target}.previous-comments-review",
+  "{target}.julik-frontend-races-review",
+  "{target}.swift-ios-review",
+  "{target}.deployment-verification",
+  "{target}.gap-analysis-review",
+]
+metadata = { "gc.run_target" = "compound-engineering.ce-code-review-synthesizer" }
+description_file = "../assets/workflows/compound-code-review/{target}.synthesize-code-review.md"
+
+[[template.children]]
+id = "{target}.apply-review-findings"
+title = "Apply Compound Engineering review findings"
+needs = ["{target}.synthesize-code-review"]
+metadata = { "gc.run_target" = "{implementation_target}", "gc.continuation_group" = "compound-code-review-fixes" }
+description_file = "../assets/workflows/compound-code-review/{target}.apply-review-findings.md"
+
+[[template]]
+id = "{target}"
+title = "Finalize approved Compound Engineering code review"
+needs = ["{target}.compound-code-review-loop"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/compound-code-review/{target}.md"

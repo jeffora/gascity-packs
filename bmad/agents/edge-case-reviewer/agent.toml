@@ -1,0 +1,3 @@
+description = "BMAD edge case code reviewer"
+scope = "rig"
+fallback = true

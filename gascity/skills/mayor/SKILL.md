@@ -204,7 +204,7 @@ or work bead. For targetless adapter/report formulas, use `--formula`.
 Common launch examples:
 
 ```bash
-gc sling gc.run-operator <initial-convoy-id> --on build-run \
+gc sling gc.run-operator <implementation-convoy-id> --on implement \
   --var artifact_root=<artifact-root>/<plan-slug>/build \
   --var context_path=<artifact-root>/<plan-slug>/context.yaml \
   --var drain_policy=separate

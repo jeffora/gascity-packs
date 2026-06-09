@@ -1,5 +1,8 @@
-Use the vendored Compound Engineering `ce-code-review` skill at `{{pack_root}}/vendor/compound-engineering-plugin/skills/ce-code-review/SKILL.md`.
+Use the assigned Compound Engineering code-review synthesis skill. Review lane
+delegation is defined by the formula graph; this stage records review fanout,
+gap-analysis coverage, synthesis, fix requirements, and artifact paths.
 
-Review the implementation against the requirements, plan, decomposition, and test evidence. Preserve Compound Engineering review classifications, then translate the final result into the build-base review outcome metadata.
+Required review fixes are handled by the single apply-review-findings lane with
+implementation target {{implementation_target}} recorded on the artifact.
 
-Do not require the upstream plugin to be installed; use the vendored skill file and its local references.
+Do not invoke provider-native subagents or upstream plugin runtime commands.

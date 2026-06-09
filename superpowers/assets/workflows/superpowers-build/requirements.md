@@ -1,5 +1,7 @@
-Use the vendored Superpowers `brainstorming` skill at `{{pack_root}}/vendor/superpowers/skills/brainstorming/SKILL.md`.
+Run the Superpowers brainstorming graph for this build.
 
-Produce a requirements artifact from the build target and optional context path. Preserve the brainstorming review discipline while making the final requirements artifact satisfy the build-base contract.
+The graph preserves the stock design approval loop and the later written-spec
+review/approval loop while producing the build-base requirements artifact
+consumed by the planning lane.
 
-Do not require Superpowers to be installed separately; use the vendored skill file and its local prompt assets.
+Do not invoke provider-native subagents or upstream plugin runtime commands.

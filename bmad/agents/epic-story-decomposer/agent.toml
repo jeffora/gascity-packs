@@ -1,0 +1,3 @@
+description = "BMAD epic and story decomposer"
+scope = "rig"
+fallback = true

@@ -1,5 +1,5 @@
-Use the vendored BMAD `bmad-prd` skill at `{{pack_root}}/vendor/bmad-method/skills/bmad-prd/SKILL.md`.
+Use the assigned BMAD PRD skill materialized for this agent.
 
-If the target is still ambiguous, use `{{pack_root}}/vendor/bmad-method/skills/bmad-brainstorming/SKILL.md` or `{{pack_root}}/vendor/bmad-method/skills/bmad-spec/SKILL.md` as supporting discovery. Produce a requirements artifact that satisfies the build-base contract and records the BMAD PRD output path.
+If the target is still ambiguous, use the assigned BMAD discovery discipline to clarify it. Produce a requirements artifact that satisfies the build-base contract and records the BMAD PRD output path.
 
-Do not require BMAD to be installed separately; use the vendored skill files and their local assets.
+Do not invoke provider-native subagents or upstream BMAD runtime commands.

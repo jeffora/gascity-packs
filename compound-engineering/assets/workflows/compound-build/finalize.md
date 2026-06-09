@@ -1,5 +1,6 @@
-Use the vendored Compound Engineering `ce-compound` skill at `{{pack_root}}/vendor/compound-engineering-plugin/skills/ce-compound/SKILL.md`.
+Use the assigned Compound Engineering final synthesis skill. Finalization lane
+delegation is defined by the formula graph; this stage records artifact
+inventory, review-resolution verification, any deployment notes preserved by
+code review, and final synthesis.
 
-Apply Compound Engineering resolution synthesis as part of finalization only. There is no extra `compound` workflow stage; write the compound resolution summary into the build-base finalize artifact and record the final workflow outcome.
-
-Do not require the upstream plugin to be installed; use the vendored skill file and its local references.
+Do not invoke provider-native subagents or upstream plugin runtime commands.

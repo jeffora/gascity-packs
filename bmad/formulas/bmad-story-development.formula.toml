@@ -1,0 +1,60 @@
+description = """
+BMAD story-development item formula.
+
+This converts BMAD quick-dev's "sub-agent/task" handoff into explicit Gas City
+implementation and review lanes.
+"""
+formula = "bmad-story-development"
+version = 1
+contract = "graph.v2"
+extends = ["do-work"]
+target_required = true
+
+[[steps]]
+id = "implement"
+title = "Run BMAD story development until clean"
+needs = ["prepare-worktree"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/bmad-story-development/implement.md"
+
+[steps.check]
+max_attempts = 8
+
+[steps.check.check]
+mode = "exec"
+path = ".gc/scripts/checks/implementation-review-approved.sh"
+timeout = "10m"
+
+[[steps.children]]
+id = "setup-bmad-story-development"
+title = "Prepare BMAD story development"
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/bmad-story-development/setup-bmad-story-development.md"
+
+[[steps.children]]
+id = "implement-story"
+title = "BMAD implement story"
+needs = ["setup-bmad-story-development"]
+metadata = { "gc.run_target" = "bmad.story-implementer" }
+description_file = "../assets/workflows/bmad-story-development/implement-story.md"
+
+[[steps.children]]
+id = "story-self-check"
+title = "BMAD story self-check"
+needs = ["implement-story"]
+metadata = { "gc.run_target" = "bmad.story-self-checker" }
+description_file = "../assets/workflows/bmad-story-development/story-self-check.md"
+
+[[steps.children]]
+id = "acceptance-audit"
+title = "BMAD acceptance audit"
+needs = ["story-self-check"]
+metadata = { "gc.run_target" = "bmad.acceptance-auditor" }
+description_file = "../assets/workflows/bmad-story-development/acceptance-audit.md"
+
+[[steps.children]]
+id = "apply-story-findings"
+title = "Apply BMAD story findings"
+needs = ["acceptance-audit"]
+metadata = { "gc.run_target" = "bmad.story-implementer", "gc.continuation_group" = "bmad-story-fixes" }
+description_file = "../assets/workflows/bmad-story-development/apply-story-findings.md"

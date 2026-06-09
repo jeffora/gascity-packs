@@ -9,6 +9,46 @@ artifact-root-relative path
 triage for the new hash and ask the human whether to continue the old run with
 updated context or start fresh.
 
+When that body-hash decision is required, use the passive wait + mail human
+gate pattern before choosing a run directory. This is not a timeout-driven task.
+
+1. Before waiting, update workflow root metadata with:
+   - `gc.github.run_selection_gate=waiting-human`
+   - `gc.github.run_selection_gate_bead_id=<this bead id>`
+   - preserve any existing `gc.github.run_selection_gate_mail_sent=true`
+2. Park the current session so idle handling does not recycle it while the
+   human decides:
+   ```bash
+   SESSION_TARGET="${GC_SESSION_ID:-${GC_SESSION_NAME:-}}"
+   SESSION_ATTACH="${GC_SESSION_NAME:-$SESSION_TARGET}"
+   WAIT_NOTE="Waiting for human decision on GitHub issue fix run selection for bead $GC_BEAD_ID."
+   if [ -n "$SESSION_ATTACH" ]; then
+     WAIT_NOTE="$WAIT_NOTE Resume with: gc session attach $SESSION_ATTACH"
+   fi
+   if [ -n "$SESSION_TARGET" ] && ! gc wait list --session "$SESSION_TARGET" | grep -Fq "$WAIT_NOTE"; then
+     gc session wait "$SESSION_TARGET" \
+       --sleep \
+       --on-beads "$GC_BEAD_ID" \
+       --note "$WAIT_NOTE"
+   fi
+   ```
+3. If workflow root metadata does not already have
+   `gc.github.run_selection_gate_mail_sent=true`, send exactly one mail with
+   `gc mail send human ...`. Include the old run directory, old body hash, new
+   body hash, new triage artifact path, workflow root id, this bead id, GitHub
+   issue URL, and requested response options: continue old run with updated
+   context, or start fresh. After sending, update workflow root metadata with
+   `gc.github.run_selection_gate_mail_sent=true` and
+   `gc.github.run_selection_gate_mail_to=human`.
+4. Wait for explicit human feedback from the active session or mail thread. If
+   the session idles, detaches, or restarts before the human responds, do not
+   close this bead. A resumed worker must read the gate metadata and continue
+   waiting from this gate.
+
+Use `gc.github.run_selection_gate=continue_old` or `start_fresh` only after an
+explicit human decision. Close fail only for explicit rejection or abort, not
+for silence.
+
 This step owns the issue-fix artifact path contract. Once the active run
 directory is known, resolve these absolute paths under that run directory:
 

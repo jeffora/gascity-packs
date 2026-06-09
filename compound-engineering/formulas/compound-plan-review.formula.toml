@@ -1,0 +1,82 @@
+description = """
+Compound Engineering plan-review expansion.
+
+This converts Compound Engineering document-review persona delegation into
+explicit Gas City graph lanes. Persona files are vendored as prompt inputs, but
+all execution is routed through Gas City `gc.*` agents.
+"""
+formula = "compound-plan-review"
+type = "expansion"
+version = 1
+contract = "graph.v2"
+
+[[template]]
+id = "{target}.setup-compound-plan-review"
+title = "Prepare Compound Engineering plan review"
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/compound-plan-review/{target}.setup-compound-plan-review.md"
+
+[[template]]
+id = "{target}.compound-plan-review-loop"
+title = "Run Compound Engineering plan review lanes until approved"
+needs = ["{target}.setup-compound-plan-review"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/compound-plan-review/{target}.compound-plan-review-loop.md"
+
+[template.check]
+max_attempts = 6
+
+[template.check.check]
+mode = "exec"
+path = ".gc/scripts/checks/design-review-approved.sh"
+timeout = "10m"
+
+[[template.children]]
+id = "{target}.coherence-review"
+title = "Compound plan review: coherence"
+metadata = { "gc.run_target" = "compound-engineering.ce-coherence-reviewer" }
+description_file = "../assets/workflows/compound-plan-review/{target}.coherence-review.md"
+
+[[template.children]]
+id = "{target}.feasibility-review"
+title = "Compound plan review: feasibility"
+metadata = { "gc.run_target" = "compound-engineering.ce-feasibility-reviewer" }
+description_file = "../assets/workflows/compound-plan-review/{target}.feasibility-review.md"
+
+[[template.children]]
+id = "{target}.scope-review"
+title = "Compound plan review: scope"
+metadata = { "gc.run_target" = "compound-engineering.ce-scope-guardian-reviewer" }
+description_file = "../assets/workflows/compound-plan-review/{target}.scope-review.md"
+
+[[template.children]]
+id = "{target}.architecture-review"
+title = "Compound plan review: architecture"
+metadata = { "gc.run_target" = "compound-engineering.ce-architecture-strategist" }
+description_file = "../assets/workflows/compound-plan-review/{target}.architecture-review.md"
+
+[[template.children]]
+id = "{target}.synthesize-plan-review"
+title = "Synthesize Compound Engineering plan review"
+needs = [
+  "{target}.coherence-review",
+  "{target}.feasibility-review",
+  "{target}.scope-review",
+  "{target}.architecture-review",
+]
+metadata = { "gc.run_target" = "compound-engineering.ce-plan-review-synthesizer" }
+description_file = "../assets/workflows/compound-plan-review/{target}.synthesize-plan-review.md"
+
+[[template.children]]
+id = "{target}.apply-plan-findings"
+title = "Apply Compound Engineering plan findings"
+needs = ["{target}.synthesize-plan-review"]
+metadata = { "gc.run_target" = "compound-engineering.ce-plan", "gc.continuation_group" = "compound-plan-review-fixes" }
+description_file = "../assets/workflows/compound-plan-review/{target}.apply-plan-findings.md"
+
+[[template]]
+id = "{target}"
+title = "Finalize approved Compound Engineering plan review"
+needs = ["{target}.compound-plan-review-loop"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description_file = "../assets/workflows/compound-plan-review/{target}.md"

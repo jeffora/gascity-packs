@@ -1,0 +1,3 @@
+description = "Superpowers spec compliance reviewer"
+scope = "rig"
+fallback = true

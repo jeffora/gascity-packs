@@ -1,0 +1,3 @@
+description = "Compound Engineering conditional Swift and iOS code reviewer"
+scope = "rig"
+fallback = true

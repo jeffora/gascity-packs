@@ -12,6 +12,7 @@ Launch inputs:
 - plan_path: {{plan_path}}
 - decomposition_path: {{decomposition_path}}
 - drain_policy: {{drain_policy}}
+- implementation_target: {{implementation_target}}
 - max_iterations: {{max_iterations}}
 - push: {{push}}
 - open_pr: {{open_pr}}
@@ -46,6 +47,10 @@ default = ""
 [vars.drain_policy]
 description = "Implementation drain policy."
 default = "separate"
+
+[vars.implementation_target]
+description = "Role target for implementation work."
+default = "gc.implementation-worker"
 
 [vars.max_iterations]
 description = "Maximum implementation/review fix attempts."
@@ -95,15 +100,38 @@ description_file = "../assets/workflows/build-base/decompose.md"
 
 [[steps]]
 id = "implement"
-title = "Implement decomposed work"
+title = "Drain implementation convoy into separate sessions"
 needs = ["decompose"]
-metadata = { "gc.run_target" = "gc.implementation-worker" }
+condition = "{{drain_policy}} == separate"
+metadata = { "gc.run_target" = "{{implementation_target}}" }
 description_file = "../assets/workflows/build-base/implement.md"
+
+[steps.drain]
+context = "separate"
+formula = "do-work"
+member_access = "exclusive"
+
+[[steps]]
+id = "implement-same-session"
+title = "Drain implementation convoy in one shared session"
+needs = ["decompose"]
+condition = "{{drain_policy}} == same-session"
+metadata = { "gc.run_target" = "{{implementation_target}}" }
+description_file = "../assets/workflows/build-base/implement-same-session.md"
+
+[steps.drain]
+context = "shared"
+formula = "do-work-item"
+on_item_failure = "skip_remaining"
+member_access = "exclusive"
+
+[steps.drain.item]
+single_lane = true
 
 [[steps]]
 id = "review"
 title = "Review implementation"
-needs = ["implement"]
+needs = ["implement", "implement-same-session"]
 metadata = { "gc.run_target" = "gc.implementation-reviewer" }
 description_file = "../assets/workflows/build-base/review.md"
 

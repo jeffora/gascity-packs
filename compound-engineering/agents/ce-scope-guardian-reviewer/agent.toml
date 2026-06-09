@@ -1,0 +1,3 @@
+description = "Compound Engineering plan reviewer for scope and right-sized abstractions"
+scope = "rig"
+fallback = true

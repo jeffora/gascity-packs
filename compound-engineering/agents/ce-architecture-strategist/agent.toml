@@ -1,0 +1,3 @@
+description = "Compound Engineering plan reviewer for architecture strategy"
+scope = "rig"
+fallback = true

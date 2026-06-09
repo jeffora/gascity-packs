@@ -1,5 +1,9 @@
-Use the built-in Gas City `build-run` helper for the implementation back half.
+Use the built-in Gas City implementation stage contract.
 
-Launch or reuse `build-run` with the artifact root, context path, drain policy, iteration limit, push flag, and open PR flag inherited from this workflow. Store the build-run workflow id and summary path on the workflow root bead.
+Implement the approved decomposition with the inherited artifact root, context
+path, drain policy, implementation target, iteration limit, push flag, and open
+PR flag. Store the implementation summary path and outcome on the workflow root
+bead.
 
-Close this step only after build-run reports a clean implementation result or an explicit failure artifact.
+Close this step only after implementation reports a clean result or an explicit
+failure artifact.

@@ -1,0 +1,3 @@
+description = "Compound Engineering implementation worker and review-finding fixer"
+scope = "rig"
+fallback = true

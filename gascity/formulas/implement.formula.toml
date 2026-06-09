@@ -8,6 +8,7 @@ creates drain work.
 Launch inputs:
 - context_path: {{context_path}} (empty means no extra context bundle)
 - drain_policy: {{drain_policy}}
+- implementation_target: {{implementation_target}}
 - summary_path: {{summary_path}} (empty means use the default implementation summary)
 - push: {{push}}
 - open_pr: {{open_pr}}
@@ -29,6 +30,10 @@ default = ""
 [vars.drain_policy]
 description = "Implementation drain policy: separate or same-session."
 default = "separate"
+
+[vars.implementation_target]
+description = "Role target for implementation work."
+default = "gc.implementation-worker"
 
 [vars.summary_path]
 description = "Optional aggregate implementation summary path."
@@ -53,7 +58,7 @@ id = "drain-separate"
 title = "Drain implementation convoy into separate sessions"
 needs = ["prepare"]
 condition = "{{drain_policy}} == separate"
-metadata = { "gc.run_target" = "gc.implementation-worker" }
+metadata = { "gc.run_target" = "{{implementation_target}}" }
 description_file = "../assets/workflows/implement/drain-separate.md"
 
 [steps.drain]
@@ -66,7 +71,7 @@ id = "drain-same-session"
 title = "Drain implementation convoy in one shared session"
 needs = ["prepare"]
 condition = "{{drain_policy}} == same-session"
-metadata = { "gc.run_target" = "gc.implementation-worker" }
+metadata = { "gc.run_target" = "{{implementation_target}}" }
 description_file = "../assets/workflows/implement/drain-same-session.md"
 
 [steps.drain]
