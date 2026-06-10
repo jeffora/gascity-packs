@@ -44,6 +44,42 @@ Set `interaction_mode=autonomous` when an adapter must avoid human gates. Set
 or opening release paths. The key mode variables are `interaction_mode` and
 `review_mode`.
 
+## Build-Base Mapping
+
+`gstack-build` extends `build-base` and keeps the inherited anchor order
+`prepare -> requirements -> plan -> plan-review -> decompose ->
+implement/implement-same-session -> review -> finalize -> publish`. The pack
+overrides `requirements` (office-hours intake), `plan` (autoplan draft),
+`plan-review` (CEO/design/engineering/devex fanout), `decompose`
+(implementation convoy), `implement`/`implement-same-session` (gstack work
+drains), `review` (staff/QA-evidence/security/gap-analysis fanout),
+`finalize` (sprint report), and `publish` (optional publish lane); `prepare`
+stays inherited. No base anchor is renamed, skipped, or reordered.
+
+`qa` and `release-readiness` are the only pack-added steps, anchored after
+`review` and before `finalize`: `qa` needs `review`, `release-readiness`
+needs `qa`, `finalize` is rewired to need `release-readiness`, and `publish`
+still needs `finalize`. Each expands a check-gated loop
+(`implementation-review-approved.sh`; QA allows 6 attempts,
+release-readiness 4) whose final lane (`synthesize-qa`,
+`synthesize-release-readiness`) owns the `code_review.verdict=done|iterate`
+loop verdict. Their outputs are the approved QA summary recorded on the
+workflow root at `gc.build.qa_summary_path` before release readiness begins
+and the approved readiness summary at
+`gc.build.release_readiness_summary_path` before finalize begins.
+
+The native stage formulas extend the matching base methodology contracts:
+`gstack-planning` (`planning-base`), `gstack-decomposition`
+(`decomposition-base`), `gstack-implementation` (`implement`),
+`gstack-review` (`code-review-base`), and `gstack-fix-loop`
+(`fix-loop-base`), plus the drain formulas `gstack-work` (`do-work`) and
+`gstack-work-item` (`do-work-item`). `gstack-build` pins them as its
+selector defaults (`planning_formula`, `decomposition_formula`,
+`implementation_formula` `gstack-implementation`,
+`implementation_item_formula` `gstack-work-item`, `code_review_formula`
+`gstack-review`, `review_fix_formula` `gstack-fix-loop`) with
+`implementation_target` defaulting to `gstack.implementer`.
+
 ## Supported Modes and Drain Policies
 
 Supported modes and drain policies, as declared in
