@@ -39,8 +39,8 @@ def main() -> int:
     print(f"app_id: {app.get('app_id', '(unset)')}")
     print(f"installation_id: {app.get('installation_id', '(unset)')}")
     print(f"slug: {app.get('slug', '(unset)')}")
-    print(f"webhook_secret_present: {app.get('webhook_secret_present', False)}")
-    print(f"private_key_pem_present: {app.get('private_key_pem_present', False)}")
+    print(f"webhook_secret_present: {app.get('webhook_secret_present') is True}")
+    print(f"private_key_pem_present: {app.get('private_key_pem_present') is True}")
     return 0
 
 
