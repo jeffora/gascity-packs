@@ -1046,6 +1046,36 @@ class DiscordGatewayServiceTests(unittest.TestCase):
         self.assertEqual(receipt["status"], "delivered")
         self.assertEqual(receipt["delivery"], "broadcast")
 
+    def test_process_inbound_ambient_room_message_routes_unknown_alias_to_sticky_single_session(self) -> None:
+        common.set_chat_binding(
+            common.load_config(),
+            "room",
+            "22",
+            ["deacon__deacon"],
+            guild_id="1",
+            policy={"ambient_read_enabled": True, "allow_untargeted_ambient_delivery": True},
+        )
+        message = {
+            "id": "507-sticky-alias",
+            "guild_id": "1",
+            "channel_id": "22",
+            "content": "@deacon: can you check the dashboard deploy?",
+            "mentions": [],
+            "author": {"id": "u-5b2", "username": "alice"},
+        }
+
+        with mock.patch.object(common, "deliver_session_message", return_value={"status": "accepted"}) as deliver_session_message:
+            outcome = gateway_service.process_inbound_message(message, bot_user_id="999")
+
+        self.assertEqual(outcome["status"], "delivered")
+        deliver_session_message.assert_called_once()
+        self.assertEqual(deliver_session_message.call_args.args[0], "deacon__deacon")
+        receipt = common.load_chat_ingress("in-507-sticky-alias")
+        assert receipt is not None
+        self.assertEqual(receipt["status"], "delivered")
+        self.assertEqual(receipt["delivery"], "broadcast")
+        self.assertEqual(receipt["mentioned_aliases"], ["deacon"])
+
     def test_process_inbound_ambient_room_message_ignores_unknown_alias_with_receipt(self) -> None:
         common.set_chat_binding(
             common.load_config(),

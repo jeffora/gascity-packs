@@ -1284,7 +1284,8 @@ def process_inbound_message(message: dict[str, Any], bot_user_id: str) -> dict[s
             preloaded_channel_info = binding_channel_info(preloaded_binding)
             preloaded_body = strip_bot_mentions(str(message.get("content", "")), bot_user_id)
             preloaded_aliases = extract_alias_mentions(preloaded_body)
-            if not preloaded_aliases and not binding_allows_untargeted_ambient_delivery(preloaded_binding):
+            sticky_single_session_delivery = binding_allows_untargeted_ambient_delivery(preloaded_binding)
+            if not preloaded_aliases and not sticky_single_session_delivery:
                 return reject_ingress_before_processing(
                     message,
                     bot_user_id,
@@ -1302,7 +1303,7 @@ def process_inbound_message(message: dict[str, Any], bot_user_id: str) -> dict[s
                 if participant_lookup.get(key):
                     has_valid_preloaded_alias = True
                     break
-            if preloaded_aliases and not has_valid_preloaded_alias:
+            if preloaded_aliases and not has_valid_preloaded_alias and not sticky_single_session_delivery:
                 return reject_ingress_before_processing(
                     message,
                     bot_user_id,
@@ -1493,9 +1494,10 @@ def process_inbound_message(message: dict[str, Any], bot_user_id: str) -> dict[s
             return {"status": "ignored_empty", "ingress_id": ingress_id, "receipt": receipt}
 
         mentioned_aliases = preloaded_aliases if preloaded_aliases is not None else extract_alias_mentions(body)
+        target_aliases = [] if binding_allows_untargeted_ambient_delivery(binding) else mentioned_aliases
         targets, delivery, resolve_error = resolve_targets(
             binding,
-            mentioned_aliases,
+            target_aliases,
             require_targeted_aliases=bool(
                 binding_allows_ambient_read(binding) and guild_id and not binding_allows_untargeted_ambient_delivery(binding)
             ),

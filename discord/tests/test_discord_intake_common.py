@@ -506,6 +506,36 @@ class DiscordIntakeCommonTests(unittest.TestCase):
 
         self.assertEqual(urlopen.call_count, 1)
 
+    def test_gc_api_base_url_uses_site_workspace_name_when_city_toml_omits_name(self) -> None:
+        pathlib.Path(self.tempdir.name, "city.toml").write_text(
+            "[workspace]\nmax_active_sessions = 5\n",
+            encoding="utf-8",
+        )
+        site_dir = pathlib.Path(self.tempdir.name, ".gc")
+        site_dir.mkdir()
+        (site_dir / "site.toml").write_text('workspace_name = "gc"\n', encoding="utf-8")
+        common._supervisor_scope_cache.clear()
+        response = mock.Mock()
+        response.__enter__ = mock.Mock(
+            return_value=mock.Mock(read=mock.Mock(return_value=b'{"items":[{"name":"gc","running":true}]}'))
+        )
+        response.__exit__ = mock.Mock(return_value=False)
+
+        with mock.patch.object(common.urllib.request, "urlopen", return_value=response):
+            self.assertEqual(common.gc_api_base_url(), "http://127.0.0.1:8372")
+
+    def test_gc_api_base_url_falls_back_to_city_dir_basename_when_no_declared_name(self) -> None:
+        pathlib.Path(self.tempdir.name, "city.toml").write_text("", encoding="utf-8")
+        common._supervisor_scope_cache.clear()
+        basename = pathlib.Path(self.tempdir.name).name
+        body = ('{"items":[{"name":"%s","running":true}]}' % basename).encode("utf-8")
+        response = mock.Mock()
+        response.__enter__ = mock.Mock(return_value=mock.Mock(read=mock.Mock(return_value=body)))
+        response.__exit__ = mock.Mock(return_value=False)
+
+        with mock.patch.object(common.urllib.request, "urlopen", return_value=response):
+            self.assertEqual(common.gc_api_base_url(), "http://127.0.0.1:8372")
+
     def test_gc_api_base_url_falls_back_when_supervisor_city_missing(self) -> None:
         pathlib.Path(self.tempdir.name, "city.toml").write_text(
             '[workspace]\nname = "gc"\n[api]\nbind = "0.0.0.0"\nport = 9555\n',

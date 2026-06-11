@@ -19,7 +19,9 @@ explicitly target one or more `@session_name` values to route. Parent-room
 thread inheritance still requires a bot mention unless the thread itself is
 also bound. Ambient-read bindings remain targeted-only even when the bot is
 mentioned directly, unless `--allow-untargeted-ambient-delivery` is enabled on
-an ambient-read room with exactly one bound session.
+an ambient-read room with exactly one bound session. In that sticky single-agent
+mode, every visible message routes to the one bound session, including messages
+that contain a non-exact shorthand mention.
 
 Ambient read consumes unmentioned guild messages. Discord therefore requires
 the app's `Message Content Intent` to be enabled in the Developer Portal

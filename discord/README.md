@@ -167,14 +167,14 @@ Inbound behavior in v0:
 - unmentioned follow-ups inside a managed launcher thread continue to the last agent the human addressed in that thread
 - guild and thread messages route only when the bot is explicitly mentioned
 - ambient-read room bindings are the exception: the bound room or bound thread accepts unmentioned messages, but only when one or more exact `@session_name` targets are present
-- single-session ambient-read bindings may opt into untargeted delivery with `--allow-untargeted-ambient-delivery`; that is the sticky room mode for long-lived agents like Randy
+- single-session ambient-read bindings may opt into untargeted delivery with `--allow-untargeted-ambient-delivery`; that sticky room mode delivers all visible messages to the one bound agent, even when the body includes a non-exact shorthand such as `@randy`
 - thread messages inherit the parent room binding when the thread itself is not bound
 - inherited thread routing still requires a bot mention unless the thread itself is bound with ambient read
 - ambient-read rooms stay targeted-only even when the bot is mentioned, unless the binding explicitly allows untargeted ambient delivery for its one bound session
 - launcher rooms and ambient-read rooms depend on Discord `Message Content Intent` because they consume unmentioned guild text
 - `@sky` inside the message targets that session name exactly
 - untargeted room messages fan out to every bound participant session
-- untargeted ambient-read room messages are ignored instead of broadcasting
+- untargeted multi-session ambient-read room messages are ignored instead of broadcasting
 - agent normal output remains private; only explicit publish commands speak back to humans
 - agents should prefer `gc discord reply-current --body-file ...` when answering the latest Discord turn
 - direct `gc discord publish` only participates in peer fanout when explicit source metadata is supplied

@@ -1985,14 +1985,42 @@ _supervisor_scope_cache: dict[str, tuple[float, str]] = {}  # workspace_name →
 _SCOPE_CACHE_TTL = 60.0  # seconds
 
 
+def resolved_workspace_name(city_cfg: dict[str, Any]) -> str:
+    """Resolve the city's runtime workspace name.
+
+    Precedence mirrors gc itself: declared city.toml workspace.name, then the
+    machine-local site binding (.gc/site.toml workspace_name), then the city
+    directory basename. gc init no longer writes workspace.name to city.toml,
+    so deployments commonly only carry the site binding.
+    """
+    workspace_cfg = city_cfg.get("workspace") or {}
+    if isinstance(workspace_cfg, dict):
+        name = str(workspace_cfg.get("name", "")).strip()
+        if name:
+            return name
+    root = city_root()
+    if not root:
+        return ""
+    site_path = os.path.join(root, ".gc", "site.toml")
+    try:
+        with open(site_path, "rb") as handle:
+            site_cfg = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError):
+        site_cfg = {}
+    if isinstance(site_cfg, dict):
+        name = str(site_cfg.get("workspace_name", "")).strip()
+        if name:
+            return name
+    return pathlib.Path(root).name
+
+
 def discover_supervisor_gc_api_scope(city_cfg: dict[str, Any]) -> str:
     """Discover the supervisor API scope prefix for the city.
 
     Caches the result for 60 seconds to avoid hitting the supervisor
     on every API call.
     """
-    workspace_cfg = city_cfg.get("workspace") or {}
-    workspace_name = str(workspace_cfg.get("name", "")).strip() if isinstance(workspace_cfg, dict) else ""
+    workspace_name = resolved_workspace_name(city_cfg)
     cache_key = workspace_name or "__default__"
     now = time.monotonic()
     if cache_key in _supervisor_scope_cache:
@@ -2006,10 +2034,7 @@ def discover_supervisor_gc_api_scope(city_cfg: dict[str, Any]) -> str:
 
 
 def _discover_supervisor_gc_api_scope_uncached(city_cfg: dict[str, Any]) -> str:
-    workspace_cfg = city_cfg.get("workspace") or {}
-    workspace_name = ""
-    if isinstance(workspace_cfg, dict):
-        workspace_name = str(workspace_cfg.get("name", "")).strip()
+    workspace_name = resolved_workspace_name(city_cfg)
     request = urllib.request.Request(
         DEFAULT_SUPERVISOR_API_BASE + "/v0/cities",
         headers={

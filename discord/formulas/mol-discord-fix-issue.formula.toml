@@ -136,7 +136,9 @@ WORKTREE=$(bd show {{issue}} --json | jq -r '.metadata.work_dir // empty')
 if [ -n "$WORKTREE" ] && [ -d "$WORKTREE" ]; then
   cd "$WORKTREE"
 else
-  WORKTREE_PATH=$(pwd)/worktrees/{{issue}}
+  WORKTREE_ROOT="$(pwd)/.gc/worktrees"
+  mkdir -p "$WORKTREE_ROOT"
+  WORKTREE_PATH="$WORKTREE_ROOT/{{issue}}"
   git worktree add "$WORKTREE_PATH" --detach origin/$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')
   cd "$WORKTREE_PATH"
   bd update {{issue}} --set-metadata work_dir="$WORKTREE_PATH"
@@ -293,17 +295,18 @@ if command -v gt >/dev/null 2>&1; then
   fi
 else
   if [ -n "$WORKTREE" ] && [ -d "$WORKTREE" ]; then
-    WORKTREE_PARENT=$(dirname "$WORKTREE")
-    CLEANUP_CWD=$(dirname "$WORKTREE_PARENT")
-    if [ ! -d "$CLEANUP_CWD/.git" ]; then
-      CLEANUP_CWD="$WORKTREE_PARENT"
-    fi
+    GIT_COMMON_DIR=$(git -C "$WORKTREE" rev-parse --git-common-dir)
+    case "$GIT_COMMON_DIR" in
+      /*) ;;
+      *) GIT_COMMON_DIR="$WORKTREE/$GIT_COMMON_DIR" ;;
+    esac
+    CLEANUP_CWD=$(dirname "$GIT_COMMON_DIR")
     if ! cd "$CLEANUP_CWD"; then
       echo "error: failed to enter cleanup directory $CLEANUP_CWD" >&2
       RELEASE_WORKFLOW=0
       exit 1
     fi
-    if ! git worktree remove "$WORKTREE" --force; then
+    if ! git --git-dir="$GIT_COMMON_DIR" worktree remove "$WORKTREE" --force; then
       echo "error: failed to remove worktree $WORKTREE" >&2
       RELEASE_WORKFLOW=0
       exit 1
