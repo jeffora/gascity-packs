@@ -1646,6 +1646,7 @@ class FormulaAssetTests(unittest.TestCase):
                 self.assertEqual(review_step["expand"], expected["review_expansion"])
                 expected_review_expand_vars = {
                     "implementation_target": "{{implementation_target}}",
+                    "artifact_path_keys": "gc.build.review_report_path",
                 }
                 expected_review_expand_vars.update(expected.get("review_expand_vars", {}))
                 self.assertEqual(
