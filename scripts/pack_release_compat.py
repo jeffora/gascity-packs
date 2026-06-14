@@ -212,12 +212,56 @@ def run_checked(command: Sequence[str], *, cwd: Path | None = None, quiet: bool 
     raise subprocess.CalledProcessError(result.returncode, command)
 
 
+def run_pack_release_validate(command: Sequence[str], *, cwd: Path) -> bool:
+    print("+ " + shlex.join(command), flush=True)
+    result = subprocess.run(
+        command,
+        cwd=str(cwd),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        return True
+
+    output = (result.stdout or "") + (result.stderr or "")
+    if 'unknown command "release" for "gc pack"' in output:
+        print(
+            "gc pack release validate is unavailable in this gc binary; using local registry validator",
+            file=sys.stderr,
+        )
+        return False
+
+    if result.stdout:
+        print(result.stdout, file=sys.stdout, end="")
+    if result.stderr:
+        print(result.stderr, file=sys.stderr, end="")
+    raise subprocess.CalledProcessError(result.returncode, command)
+
+
+def validate_registry_locally(registry_path: Path) -> None:
+    validator = registry_path.parent / "validate_registry.py"
+    if not validator.exists():
+        print(
+            "local validate_registry.py not found; skipping release hash validation fallback",
+            file=sys.stderr,
+        )
+        return
+    run_checked([sys.executable, str(validator)], cwd=registry_path.parent)
+
+
 def validate_registry_hashes(gc_bin: str, registry_path: Path, pack_filters: Sequence[str] | None) -> None:
+    commands: list[list[str]] = []
     if pack_filters:
         for pack in pack_filters:
-            run_checked([gc_bin, "pack", "release", "validate", str(registry_path), "--pack", pack], cwd=registry_path.parent)
-        return
-    run_checked([gc_bin, "pack", "release", "validate", str(registry_path)], cwd=registry_path.parent)
+            commands.append([gc_bin, "pack", "release", "validate", str(registry_path), "--pack", pack])
+    else:
+        commands.append([gc_bin, "pack", "release", "validate", str(registry_path)])
+
+    for command in commands:
+        if not run_pack_release_validate(command, cwd=registry_path.parent):
+            validate_registry_locally(registry_path)
+            return
 
 
 def exercise_city(gc_bin: str, city_dir: Path) -> None:

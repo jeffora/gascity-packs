@@ -256,9 +256,10 @@ def test_ci_workflows_use_blacksmith_runner_labels() -> None:
 
 def test_readme_includes_blacksmith_sponsor_badge() -> None:
     readme = (gascity_pack_inference_gate.REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    readme_lines = {line.strip() for line in readme.splitlines()}
 
     assert "## Sponsors" in readme
-    assert "https://blacksmith.sh/" in readme
+    assert '<a href="https://blacksmith.sh/">' in readme_lines
     assert "docs/images/blacksmith-powered.png" in readme
     assert (gascity_pack_inference_gate.REPO_ROOT / "docs" / "images" / "blacksmith-powered.png").is_file()
 
