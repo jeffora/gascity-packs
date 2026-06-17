@@ -134,14 +134,8 @@ Your formula: `mol-polecat-work`
 > Polecat-vs-polecat races are the #1 source of churn — close the window.
 
 ```bash
-# Step 1a: Check for assigned in-progress work (already claimed — no race)
-{{ .AssignedInProgressQuery }}
-
-# Step 1b: If none, find pool work
-{{ .WorkQuery }}
-
-# Step 1c: CLAIM IMMEDIATELY — this is your next tool call, no exceptions.
-gc bd update <id> --claim                                       # Atomic CAS
+# Step 1: Claim exactly one work item through the standard hook protocol.
+gc hook --claim --json
 
 # Step 2: AFTER successful claim, only then read code, formula steps, etc.
 gc bd show <id> --json | jq '.[0].metadata'
@@ -152,12 +146,13 @@ gc mail inbox
 # Step 4: Execute — read formula steps and work through them in order
 ```
 
-When nudged after dispatch, run `gc hook` or `{{ .WorkQuery }}`. That lookup
-checks assigned work first (session bead ID, runtime session name, then
-alias) and only falls through to unassigned pool work routed to
-`${GC_RIG:+$GC_RIG/}{{ .BindingPrefix }}polecat`.
+When nudged after dispatch, run `gc hook --claim --json`. That single command
+checks assigned work first (session bead ID, runtime session name, then alias)
+and only falls through to unassigned pool work routed to
+`${GC_RIG:+$GC_RIG/}{{ .BindingPrefix }}polecat`; it also performs the atomic
+claim before you inspect the bead.
 
-**Hook/work query -> Read formula steps -> Follow in order -> done sequence.**
+**Hook claim -> Read formula steps -> Follow in order -> done sequence.**
 
 ## Context Exhaustion
 

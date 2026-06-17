@@ -130,6 +130,24 @@ test_composition_is_documented() {
         fail "pack.toml should not reference the retired maintenance pack import"
 }
 
+test_polecat_startup_uses_standard_hook_claim() {
+    local agent prompt propulsion
+    agent="$GASTOWN/agents/polecat/agent.toml"
+    prompt="$GASTOWN/agents/polecat/prompt.template.md"
+    propulsion="$GASTOWN/template-fragments/propulsion.template.md"
+
+    grep -F 'gc hook --claim --json' "$agent" >/dev/null ||
+        fail "polecat nudge should call the standard hook claim path"
+    grep -F 'gc hook --claim --json' "$prompt" >/dev/null ||
+        fail "polecat prompt should call the standard hook claim path"
+    grep -F 'gc hook --claim --json' "$propulsion" >/dev/null ||
+        fail "polecat propulsion fragment should call the standard hook claim path"
+    ! grep -F 'run `gc hook` or' "$prompt" >/dev/null ||
+        fail "polecat prompt must not regress to an unclaimed hook/work-query choice"
+    ! grep -F 'run `gc hook` or' "$propulsion" >/dev/null ||
+        fail "polecat propulsion fragment must not regress to an unclaimed hook/work-query choice"
+}
+
 test_refinery_direct_merge_is_worktree_safe_and_fail_closed() {
     local formula direct_block
     formula="$GASTOWN/formulas/mol-refinery-patrol.toml"
@@ -174,6 +192,7 @@ test_retired_dog_formulas_are_not_reintroduced
 test_shutdown_dance_contracts_are_executable
 test_shutdown_dance_lifecycle_and_audit_contracts
 test_composition_is_documented
+test_polecat_startup_uses_standard_hook_claim
 test_refinery_direct_merge_is_worktree_safe_and_fail_closed
 
 echo "gastown pack asset tests passed"
