@@ -1,0 +1,28 @@
+# terminal-ux — shared terminal ergonomics pack.
+#
+# Config-only. Ships a single session_live hook that improves the
+# human-attached terminal experience for any city that imports it:
+#
+#   1. Mouse-wheel drives tmux copy-mode scrollback (instead of leaking the
+#      wheel into a mouse-reporting TUI like Claude Code, which would scroll
+#      its own history). Mirrors gastown's WheelUpPane/WheelDownPane binding.
+#   2. Shift+Enter inserts a newline in Claude Code, by forwarding extended
+#      keys (CSI-u) through tmux to the app.
+#
+# Role-agnostic: the hook only configures tmux for the session it is handed,
+# so it composes with any pack's roles. It is socket-aware (gcmux uses
+# GC_TMUX_SOCKET) so it only ever touches the city's own tmux server.
+#
+# Reversible: remove the import to stop applying it; running sessions revert
+# on restart, or per-session via the unbind/off commands documented in
+# README.md.
+
+[pack]
+name = "terminal-ux"
+version = "0.1.0"
+schema = 2
+
+[global]
+session_live = [
+    "{{.ConfigDir}}/assets/scripts/tmux-terminal-ux.sh {{.Session}}",
+]
