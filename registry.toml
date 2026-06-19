@@ -210,7 +210,7 @@ schema = 1
 
 [[pack]]
   name = "contributing"
-  description = "The external-contributor lifecycle for gastownhall/gascity — write a good issue, find priority work, open a PR, and self-review before pushing. Composes pr-pipeline."
+  description = "The external-contributor lifecycle for gastownhall/gascity — write a good issue, find priority work, plan a PR, map its blast radius, and self-review against the codebase audit. Each step produces an artifact you act on; the pack stops before pushing — opening the PR is your call. Self-contained: gas-city's actual standards (the B-rule adoption-review audit, blast-radius dimensions, test tiers) are baked into the skills; no imports."
   source = "https://github.com/gastownhall/gascity-packs//contributing"
   source_kind = "git"
 
@@ -220,3 +220,10 @@ schema = 1
     commit = "16f8297d4e62e143456bfbe4a00e0980a7d9400e"
     hash = "sha256:8ee58fba7a87a2390fe707ccb593eec3f25b303782696d836d800e68992beeef"
     description = "Initial contributing pack release."
+
+  [[pack.release]]
+    version = "0.2.0"
+    ref = "main"
+    commit = "7dd57dd9be7d286f19f74c27a00a4359392734a4"
+    hash = "sha256:3ba4ad08c81ab8d2cb9bd591a0f546435e14a9132b1d4d4745bde03d0feb94ad"
+    description = "Self-contained gas-city contributor lifecycle: drops the pr-pipeline import, bakes in the B-rule adoption-review audit, blast-radius dimensions, and test-tier strategy (7 skills, zero imports)."
