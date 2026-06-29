@@ -1,0 +1,43 @@
+# input-notifier — alert the human when a session is WAITING ON INPUT.
+#
+# Config-only. Ships a single session_live hook that improves the
+# human-attended experience for any city that imports it, by surfacing the
+# moments a session stalls waiting for a human:
+#
+#   1. Tool-permission prompts (auto / default permission modes) — immediate.
+#   2. Idle "waiting for input" and clarification / multiple-choice
+#      (elicitation) prompts — picked up by Claude Code's idle Notification
+#      (~60s debounce; that delay is expected and acceptable).
+#
+# Mechanism (modeled on terminal-ux): the session_live script injects a
+# Claude Code `Notification` hook into the session's runtime claude settings
+# (<city>/.gc/settings.json) and turns on tmux monitor-bell for the session's
+# window. Claude Code's settings file-watcher picks the hook up live — no
+# restart needed. When the hook fires it drives two zero-infra sinks:
+#
+#   A. tmux: rings the pane bell so monitor-bell flags the window-status
+#      entry as needing attention (socket-aware; never touches a personal
+#      tmux server).
+#   B. gc mail: `gc mail send human --notify` so it also lands in the gc
+#      inbox/banner.
+#
+# Role-agnostic: the hook only configures the session it is handed, so it
+# composes with any pack's roles. Socket-aware: tmux commands run against the
+# city's own server (GC_TMUX_SOCKET / ambient $TMUX). Reversible: remove the
+# import to stop applying it — the next time gc regenerates
+# <city>/.gc/settings.json the injected hook is gone, and running sessions
+# revert on restart (or per-session via the steps in README.md).
+#
+# Requirements: jq and tmux on PATH (same class of dependency as terminal-ux's
+# tmux requirement); `gc` resolvable at hook-fire time (the hook exports the
+# standard gc PATH prefix, mirroring the other managed hooks).
+
+[pack]
+name = "input-notifier"
+version = "0.1.0"
+schema = 2
+
+[global]
+session_live = [
+    "{{.ConfigDir}}/assets/scripts/install-notify-hook.sh {{.Session}} {{.CityRoot}} {{.ConfigDir}}/assets/scripts/notify-waiting.sh",
+]
