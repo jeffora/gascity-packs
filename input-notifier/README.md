@@ -34,6 +34,29 @@ and — for the *waiting* notification types (`permission_prompt`, `idle_prompt`
 Terminal/informational events (`auth_success`, `elicitation_complete`,
 `elicitation_response`) are ignored.
 
+### AskUserQuestion detector (the second layer)
+
+`AskUserQuestion` / multiple-choice clarification prompts fire **no**
+Notification hook at all — Claude Code treats them as a tool-call-in-flight, so
+the `elicitation_dialog` matcher does not cover them and a gc idle-probe would
+see the session as "working" (open issue
+[anthropics/claude-code#59908](https://github.com/anthropics/claude-code/issues/59908)).
+No hook config can ever cover this case, so the pack adds a focus-independent
+detector that **layers alongside** the Notification hook (the hook owns
+`permission_prompt` + best-effort `idle_prompt`; the detector owns the
+question/clarification case). Both write the same two sinks.
+
+`orders/detect-waiting.toml` is a `cooldown` `[order]` (30s) that runs
+`assets/scripts/detect-waiting.sh`: it lists live sessions, `gc session peek`s
+each, and matches the AskUserQuestion dialog's on-screen footer signature
+(`Enter to select` — unique to that dialog; the permission prompt's footer is
+`Esc to cancel · Tab to amend · ctrl+e to explain`, so there is no double-fire).
+On a match it fires the tmux bell (BEL to the session's pane tty) and one
+`gc mail send human --notify`, **de-duped** to once per dialog appearance (a
+per-session marker under `$GC_CITY_RUNTIME_DIR/input-notifier-waiting`, cleared
+when the dialog clears so a later question re-alerts). Focus-independent: peek
+does not depend on terminal focus.
+
 ## Requirements
 
 - `jq` and `tmux` on `PATH` (same class of dependency as terminal-ux's tmux

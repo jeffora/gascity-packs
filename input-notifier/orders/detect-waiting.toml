@@ -1,0 +1,14 @@
+# detect-waiting — focus-independent watcher for AskUserQuestion / multiple-
+# choice clarification prompts, which fire NO Claude Code Notification hook
+# (anthropics/claude-code#59908). Layers ALONGSIDE the [global] session_live
+# Notification hook (which owns permission_prompt + best-effort idle_prompt);
+# this owns the question/clarification case. Both write the same two sinks
+# (tmux bell flag + gc mail send human --notify). 30s cadence keeps the
+# "waiting" alert timely without polling churn. Reversible: remove the import
+# and this order is gone.
+[order]
+description = "Detect AskUserQuestion/clarification prompts (no Notification hook fires for them; #59908) by peeking live sessions, and alert the human via tmux bell + gc mail. De-duped: once per dialog appearance."
+trigger = "cooldown"
+interval = "30s"
+exec = "bash $GC_PACK_DIR/assets/scripts/detect-waiting.sh"
+timeout = "30s"
