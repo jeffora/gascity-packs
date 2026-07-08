@@ -1,0 +1,26 @@
+# adjunct — the fleet Adjunct's portable operating identity.
+#
+# Single-role pack, imported ONLY into the HQ city (unta) at city scope. It is
+# deliberately NOT part of the fleet-wide `gascity` pack: the Adjunct is a
+# fleet-unique role (one instrument standing above all city Mayors), so its
+# skill must not materialize in every city the way `gascity`/`mayor` does.
+#
+# Ships:
+#   - skills/adjunct/SKILL.md   the full Adjunct identity + read-mostly playbook
+#                               (theory of operation, sweep->diff->file->gate
+#                               loop, cross-city mail conventions, and the
+#                               cross-city-prep-worker contract).
+#   - orders/cross-city-audit   recurring consistency sweep (cross-*city* analog
+#                               of core's per-rig cross-rig-deps) that diffs
+#                               each city's imports/config and files an HQ bead
+#                               on drift.
+#
+# Why a pack instead of the hand-maintained agents/adjunct/prompt.template.md:
+# the identity becomes versioned and recoverable. Recovery from a lost/wedged
+# session is "new session + load this skill", not nursing one persistent
+# session through the handoff->resume-trap->quarantine failure mode.
+[pack]
+name = "adjunct"
+version = "0.1.0"
+schema = 2
+description = "Portable operating identity for the fleet Adjunct: cross-city pack rollout, drift detection, and the recurring consistency audit. HQ-only."

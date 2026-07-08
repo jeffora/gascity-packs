@@ -1,0 +1,20 @@
+# cross-city-audit — the cross-*city* analog of core's per-rig cross-rig-deps.
+#
+# The steady state of the Adjunct is a sweep, not a one-off. This order diffs
+# the import state across every registered city and flags DRIFT: the same pack
+# pinned to different refs in different cities. It is deliberately policy-free —
+# it does not know a "correct" ref, only that cities sharing a pack should share
+# its ref. That makes it robust to the standard moving: when gasland advances a
+# pack and the fan-out hasn't completed, the divergence shows up as drift until
+# every in-scope city catches up.
+#
+# Detect-and-file only. It NEVER mutates a peer city — remediation flows through
+# the Adjunct's human-gated write path. Output is captured in `gc order
+# history`; run on demand with `gc order run cross-city-audit`. On drift it
+# files (or refreshes) a single open HQ bead tagged [cross-city-audit] carrying
+# a signature, so a persistent drift does not spawn a new bead every interval.
+[order]
+description = "Diff import refs across all cities; file an HQ bead on cross-city pack drift"
+trigger = "cooldown"
+interval = "1h"
+exec = "$PACK_DIR/assets/scripts/cross-city-audit.py"
