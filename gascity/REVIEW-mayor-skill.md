@@ -1,5 +1,77 @@
 # Review: `gascity` pack `mayor` skill
 
+> **Amendment (2026-07-07):** Reframed against this fleet's actual setup. Two
+> changes from the original review, both prompted by adjunct verification of the
+> live fleet + the Gas City 1.3 release:
+> 1. The "behavioral tension vs. the gastown dispatch-liberally mayor" caveat
+>    (originally the review's headline concern) is **not applicable to this
+>    fleet** — none of our four cities import a gastown pack. See the new
+>    §0 (Fleet reality) and the struck-through bullet in §3.
+> 2. Added Gas City 1.3 context: the mayor skill you reviewed **is** the current
+>    1.3 mayor model (a portable skill, not a deviation from a tmux session),
+>    and it composes with Formulas 2.0 looping. See §0 and the recast §3.
+>
+> The mechanical analysis in §1 and §2 stands unchanged; it remains an accurate
+> description of what the skill does and how it compares to the built-in mayor,
+> the (optional, unimported-here) gastown template, and the core skills.
+
+## 0. Fleet reality and Gas City 1.3 framing (amendment)
+
+**No gastown anywhere in this fleet.** Adjunct verification of the live fleet
+(gasland, darujhistan, raraku, unta) found that **none** of the four cities
+import a gastown pack, and there are **zero** polecat/refinery references
+anywhere. The only `gastown` strings in the tree are the `gastownhall/gascity.git`
+upstream *org* name. Imports across the fleet are `core` + `bd` (from the gascity
+upstream) plus `terminal-ux` everywhere; raraku additionally carries
+`compound-engineering` (which pulls the gascity base transitively) and
+`input-notifier`. **Our mayor baseline is therefore the built-in `mayor.md`
+five-line loop** — we have never run the gastown "dispatch liberally, fix when
+fast" posture. Any comparison in this review against the gastown template is
+kept for completeness only; it describes a pack we do not run.
+
+**The reviewed skill IS the Gas City 1.3 mayor.** Per the 1.3 release ("Now
+we're looping with gas"), the Mayor evolved from a specialized, named,
+tmux-attached session into a **reusable skill loadable by any agent** — desktop
+app, CLI coding agent, or VSCode extension — addressed as
+`Mayor`/`$mayor`/`/mayor`/`@mayor`. The artifact reviewed here is that skill, so
+it should be framed as **the current mayor**, not an add-on or a deviation. Its
+`gc formula catalog --json` / `gc formula show <name> --json` discovery protocol
+(§1 step 5) is exactly the 1.3 formula-discovery mechanism.
+
+**Formulas 2.0 / looping is the capability this unlocks.** 1.3 inverts the
+execution model: the **orchestrator is the engine and any number of agents can
+be workers** (v1 had each agent execute every step). Concretely this gives the
+mayor skill's `gc sling ... --on <formula>` launches access to:
+- **Drain (parallel convoy execution).** An orchestrator scatters a convoy
+  across multiple worker agents in **separate worktrees**, bounded by
+  `max_units` (cap on parallel beads) with an `on_item_failure` policy and
+  `context = "separate"` isolation. This is what turns the `convoys[]` structure
+  the mayor skill emits (§1 step 4) into fan-out work rather than serial beads.
+- **Multi-perspective review loop.** Three agents review each result from
+  distinct angles — **acceptance, test evidence, simplicity** — each writing a
+  verdict file; a check script (e.g. `implementation-review-approved.sh`) reads
+  the verdicts and **gates** progress; if not approved, `apply-review-findings`
+  synthesizes the feedback and re-runs, looping up to `max_attempts` (6 in the
+  release's example). Gas City reports running "50+ PRs using 100+ agents at a
+  time while also keeping quality high" on this loop.
+
+**Gastown is now an optional importable pack; built-in pack magic is gone.**
+1.3 eliminated implicit pack splicing — all composition is now explicit in
+`pack.toml` with pinned imports, providers declared via `[providers.<name>]`,
+and the fallback agent removed (collisions are hard errors). Gas Town is just
+one importable pack among others. This is *why* the gastown tension is a
+non-issue for us: it can only arise in a city that **deliberately imports
+gastown**, and we don't.
+
+**`gascity` is "the software factory we use."** The gascity pack is the default
+production pack written by `gc init` — "the exact same base we use" internally —
+bundling the daily-driver formulas (`build-basic`, `build-from-plan`,
+`build-from-decompose`, `build-from-convoy`, and the GitHub triage/fix/PR-review
+formulas). Adopting the mayor skill is adopting a slice of that production
+factory, not an experimental add-on.
+
+---
+
 Reviewed file: `rigs/gascity-packs/gascity/skills/mayor/SKILL.md` (218 lines, new).
 Compared against: the built-in mayor prompt (`rigs/gascity/cmd/gc/prompts/mayor.md`),
 the gastown-pack mayor prompt template (`rigs/gascity-packs/gastown/agents/mayor/prompt.template.md`),
@@ -129,30 +201,49 @@ duplicate their command syntax — it references the pack's own script
 the bead-creation step, and references `gc sling`/`gc formula` the same way
 `gc-dispatch` does but adds the discovery/inspection discipline on top.
 
-## 3. What changes for a city that adopts it
+## 3. What changes for THIS fleet (built-in `mayor.md` → gascity mayor skill)
+
+The concrete delta for our four cities is **built-in `mayor.md` five-line loop
+→ gascity mayor skill**. There is **no competing posture to reconcile**: with no
+gastown pack imported anywhere (see §0), the only baseline the skill replaces is
+the built-in loop, which has **no artifact pipeline, no approval gates, and no
+review/fix loop**. So the changes below are pure additions on top of a thin
+baseline, not a negotiation between two mayors.
 
 - **A new default entry point for "shape work first."** Any mention of
   Mayor/`$mayor`/`/mayor`/`@mayor`, or a request to plan/create beads/
   schedule/start/run a workflow, now pulls in a structured artifact pipeline
   (`requirements.md` → `implementation-plan.md` → `tasks.md`) with named
-  frontmatter schemas and approval gates, instead of the mayor free-styling a
-  plan in chat and firing off `gc bd create` calls directly. Cities that want
-  a paper trail for requirements/design before beads exist gain one "for
+  frontmatter schemas and approval gates, instead of the built-in mayor
+  free-styling a plan in chat and firing off `gc bd create` calls directly.
+  Our cities gain a requirements/design paper trail before beads exist "for
   free" whenever this skill fires — but only when the skill's trigger phrase
   or intent (plan/create beads/schedule/run a workflow) is present; a plain
-  one-off task request may still fall through to the built-in `mayor.md` loop
-  or the gastown prompt's polecat-first behavior.
-- **A behavioral tension with the gastown "dispatch liberally" mayor.** In any
-  city running the gastown pack, this skill's "do not implement source
-  changes unless explicitly asked to run an implementation workflow through a
-  formula" instruction can conflict with the gastown prompt's "fix directly
-  when it's <5 minutes" guidance and its default of immediately slinging
-  every filed bead to a polecat pool. Whichever guidance the session actually
-  attends to first (prompt template vs. skill trigger) will determine
-  real behavior; this pack does not reconcile the two, so a city adopting it
-  alongside gastown should expect the mayor to sometimes gate on formal
-  plan/task artifacts and sometimes short-circuit straight to `gc bd
-  create` + `gc sling <polecat>`, depending on how the request is phrased.
+  one-off task request still falls through to the built-in `mayor.md` loop.
+  The skill is a **strict superset** of our current baseline that only engages
+  on trigger intent — it does not remove or degrade the one-off `gc bd create`
+  + `gc sling` path we use today.
+- **Access to Formulas 2.0 looping (the real capability gain).** Beyond the
+  artifact pipeline, the skill's catalog-gated formula launch is the doorway to
+  the 1.3 looping engine our built-in loop has no equivalent for: convoy
+  **drain** across parallel worker agents in separate worktrees (`max_units`,
+  `on_item_failure`, `context = "separate"`) and the **acceptance/test/
+  simplicity review loop with gating + `apply-review-findings` re-runs up to
+  `max_attempts`** (see §0). The built-in `mayor.md` loop can only `gc sling`
+  one bead to one agent and monitor; it has no fan-out, no verdict gating, and
+  no automatic fix-and-re-review. This is the headline upside of adoption for
+  us.
+- ~~**A behavioral tension with the gastown "dispatch liberally" mayor.**~~
+  **NOT APPLICABLE to this fleet.** The original review flagged a conflict
+  between this skill's "do not implement source changes unless explicitly asked
+  to run an implementation workflow through a formula" charter and the gastown
+  prompt's "fix directly when it's <5 minutes" / sling-every-bead-to-a-polecat
+  posture. **We import no gastown pack in any city** (§0), so there is no
+  competing prompt for the skill to conflict with. This tension can only arise
+  in a city that deliberately imports gastown — and with 1.3's explicit-imports
+  model (built-in pack magic removed), that would be a visible, intentional
+  choice in `pack.toml`, not something that happens by accident. For our fleet,
+  treat this caveat as moot.
 - **Bead creation moves off ad hoc `gc bd create` for planned work.** For
   work that went through the requirements/plan/tasks pipeline, bead and
   convoy creation runs through `assets/scripts/create_beads_from_tasks.py`
