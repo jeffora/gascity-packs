@@ -100,14 +100,14 @@ https://<discord-interactions-public-url>/v0/discord/interactions
 Map Discord channels or rig names to workflow targets:
 
 ```bash
-gc discord map-channel 123456789012345678 223456789012345678 product/polecat \
+gc discord map-channel 123456789012345678 223456789012345678 product/claude \
   --fix-formula mol-discord-fix-issue
 
-gc discord map-rig 123456789012345678 mission-control mission-control/polecat
+gc discord map-rig 123456789012345678 mission-control mission-control/claude
 ```
 
-The default `mol-discord-fix-issue` workflow expects a `rig/polecat` sling
-target. If you need a different pool contract, use a different formula.
+The default `mol-discord-fix-issue` workflow slings to the mapped
+`rig/<pool-worker>` target.
 
 Register the guild-scoped `/gc` command after the bot is installed:
 

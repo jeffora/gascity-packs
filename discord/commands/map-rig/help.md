@@ -1,14 +1,14 @@
 Map a Discord guild rig name to a workflow dispatch target.
 
 Example:
-  gc discord map-rig 123456789012345678 mission-control mission-control/polecat \
+  gc discord map-rig 123456789012345678 mission-control mission-control/claude \
     --fix-formula mol-discord-fix-issue
 
 Arguments:
   <guild_id>    Discord guild id
   <rig_name>    Rig name as used in /gc fix <rig>
-  <target>      rig/pool sling target
-                `mol-discord-fix-issue` requires a `rig/polecat` target
+  <target>      rig/<pool-worker> sling target (e.g. rig/claude — the rig's
+                configured pool worker)
 
 Flags:
   --fix-formula <name>  formula to use for `/gc fix`, default: mol-discord-fix-issue

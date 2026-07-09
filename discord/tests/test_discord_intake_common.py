@@ -93,9 +93,19 @@ class DiscordIntakeCommonTests(unittest.TestCase):
         self.assertEqual(mapping["target"], "product/polecat")
         self.assertEqual(mapping["commands"]["fix"]["formula"], "mol-discord-fix-issue")
 
-    def test_set_channel_mapping_rejects_non_polecat_target_for_default_formula(self) -> None:
-        with self.assertRaisesRegex(ValueError, "requires a rig/polecat sling target"):
-            common.set_channel_mapping(common.load_config(), "1", "2", "product/witness", "mol-discord-fix-issue")
+    def test_set_channel_mapping_accepts_any_configured_pool_worker_for_default_formula(self) -> None:
+        config = common.set_channel_mapping(common.load_config(), "1", "2", "product/claude", "mol-discord-fix-issue")
+
+        mapping = common.resolve_channel_mapping(config, "1", "2")
+
+        self.assertIsNotNone(mapping)
+        assert mapping is not None
+        self.assertEqual(mapping["target"], "product/claude")
+        self.assertEqual(mapping["commands"]["fix"]["formula"], "mol-discord-fix-issue")
+
+    def test_set_channel_mapping_rejects_non_rig_pool_shaped_target(self) -> None:
+        with self.assertRaisesRegex(ValueError, "target must be a rig/pool sling target"):
+            common.set_channel_mapping(common.load_config(), "1", "2", "product", "mol-discord-fix-issue")
 
     def test_set_channel_mapping_allows_non_polecat_target_for_custom_formula(self) -> None:
         config = common.set_channel_mapping(common.load_config(), "1", "2", "product/witness", "custom-fix-formula")

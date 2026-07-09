@@ -1679,9 +1679,6 @@ def validate_fix_dispatch_target(target: str, fix_formula: str) -> str:
     rig, separator, pool = normalized_target.partition("/")
     if not separator or not rig.strip() or not pool.strip():
         raise ValueError("target must be a rig/pool sling target")
-    formula = str(fix_formula or FIX_FORMULA_DEFAULT).strip() or FIX_FORMULA_DEFAULT
-    if formula == FIX_FORMULA_DEFAULT and pool.strip() != "polecat":
-        raise ValueError(f"{FIX_FORMULA_DEFAULT} requires a rig/polecat sling target")
     return f"{rig.strip()}/{pool.strip()}"
 
 
