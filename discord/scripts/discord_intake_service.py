@@ -374,7 +374,7 @@ def rig_workdir(rig: str) -> str:
                     continue
                 entry = json.loads(line)
                 path = str(entry.get("path", ""))
-                if path == rig:
+                if path == rig or os.path.basename(path) == rig:
                     if os.path.isabs(path):
                         candidate = os.path.abspath(path)
                     else:

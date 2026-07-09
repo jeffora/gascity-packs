@@ -641,6 +641,24 @@ class DiscordIntakeServiceTests(unittest.TestCase):
         self.assertIn("lookup failed", response["data"]["content"].lower())
         self.assertEqual(receipt["response_kind"], "message")
 
+    def test_rig_workdir_resolves_flat_route_path(self) -> None:
+        self.write_rig_route("squiz")
+
+        resolved = service.rig_workdir("squiz")
+
+        self.assertEqual(resolved, os.path.realpath(str(pathlib.Path(self.tempdir.name, "squiz"))))
+
+    def test_rig_workdir_resolves_nested_route_path_by_basename(self) -> None:
+        beads_dir = pathlib.Path(self.tempdir.name, ".beads")
+        beads_dir.mkdir(parents=True, exist_ok=True)
+        rig_dir = pathlib.Path(self.tempdir.name, "rigs", "squiz")
+        rig_dir.mkdir(parents=True, exist_ok=True)
+        pathlib.Path(beads_dir, "routes.jsonl").write_text('{"prefix":"sq","path":"rigs/squiz"}\n', encoding="utf-8")
+
+        resolved = service.rig_workdir("squiz")
+
+        self.assertEqual(resolved, os.path.realpath(str(rig_dir)))
+
     def test_rig_workdir_rejects_paths_outside_city_root(self) -> None:
         beads_dir = pathlib.Path(self.tempdir.name, ".beads")
         beads_dir.mkdir(parents=True, exist_ok=True)
