@@ -25,6 +25,28 @@ BEAD_ID="${GC_BEAD_ID:-}"
 command -v gc >/dev/null 2>&1 || fail "gc is required on PATH"
 command -v python3 >/dev/null 2>&1 || fail "python3 is required on PATH"
 
+gc_bd_show() {
+  # gc_bd_show <bead-id> [args...] -> `gc bd show`, scoped to the store this
+  # gate is running against.
+  #
+  # The dispatcher's gate env sets GC_STORE_PATH to the owning store (a rig root
+  # for a rig-owned graph) but carries no GC_RIG/GC_RIG_ROOT/GC_BEADS_SCOPE_ROOT,
+  # so an unscoped `gc bd` exhausts its resolution chain and answers from the
+  # CITY store, where a rig bead does not exist — every rig ralph gate then
+  # failed deterministically on an unresolvable bead (un-1b63). Bare `bd` was
+  # immune here because it reads BEADS_DIR, which the gate env does set
+  # correctly; routing these scripts through `gc bd` is what exposed this. -C
+  # names the store explicitly and is honored without the existence probe the
+  # bead-prefix path depends on. When GC_STORE_PATH is unset, or names the city
+  # root, resolution falls back to the normal chain, so city-scoped gates are
+  # unaffected.
+  if [ -n "${GC_STORE_PATH:-}" ]; then
+    gc bd show -C "$GC_STORE_PATH" "$@"
+  else
+    gc bd show "$@"
+  fi
+}
+
 metadata_value() {
   # metadata_value <json> <key> -> prints metadata[key] or empty
   printf '%s' "$1" | python3 -c '
@@ -48,7 +70,10 @@ print(value if isinstance(value, str) else "")
 ' "$2"
 }
 
-SHOW_JSON="$(gc bd show "$BEAD_ID" --json 2>/dev/null)" || fail "gc bd show $BEAD_ID failed"
+GC_ERR="$(mktemp)"
+trap 'rm -f "$GC_ERR"' EXIT
+SHOW_JSON="$(gc_bd_show "$BEAD_ID" --json 2>"$GC_ERR")" \
+  || fail "gc bd show $BEAD_ID failed (store ${GC_STORE_PATH:-<unset>}): $(tail -c 400 "$GC_ERR" | tr '\n' ' ')"
 
 SCHEMA="$(metadata_value "$SHOW_JSON" "gc.build.artifact_schema")"
 PATH_KEYS="$(metadata_value "$SHOW_JSON" "gc.build.artifact_path_keys")"
@@ -58,7 +83,8 @@ PATH_KEYS="$(metadata_value "$SHOW_JSON" "gc.build.artifact_path_keys")"
 ROOT_ID="$(metadata_value "$SHOW_JSON" "gc.root_bead_id")"
 ROOT_JSON="$SHOW_JSON"
 if [ -n "$ROOT_ID" ] && [ "$ROOT_ID" != "$BEAD_ID" ]; then
-  ROOT_JSON="$(gc bd show "$ROOT_ID" --json 2>/dev/null)" || fail "gc bd show $ROOT_ID failed"
+  ROOT_JSON="$(gc_bd_show "$ROOT_ID" --json 2>"$GC_ERR")" \
+    || fail "gc bd show $ROOT_ID failed (store ${GC_STORE_PATH:-<unset>}): $(tail -c 400 "$GC_ERR" | tr '\n' ' ')"
 fi
 
 ARTIFACT_PATH=""
