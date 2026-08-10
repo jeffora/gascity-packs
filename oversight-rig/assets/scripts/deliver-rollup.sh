@@ -3,6 +3,15 @@
 # deliver-rollup.sh — POST severity:escalate rollup beads to extmsg
 # and mark them delivered. Idempotent.
 #
+# Two different "rig" notions are in play here — keep them apart:
+#
+#   * the STORE that owns the bead, which decides how `gc bd` must be
+#     scoped to read or update it (see lib-rollups.sh);
+#   * the ``rig:<name>`` LABEL on the bead, which decides which channel it
+#     is delivered to (below).
+#
+# They normally agree, but only the label is authoritative for routing.
+#
 # Routing model
 # -------------
 #
@@ -57,6 +66,8 @@ set -euo pipefail
 api="${GC_API_BASE_URL%/}/v0/city/${GC_CITY_NAME}/extmsg/outbound"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 resolver="${script_dir}/resolve_rig_channel.py"
+# shellcheck source=lib-rollups.sh
+. "${script_dir}/lib-rollups.sh"
 
 # resolve_target <rig>
 #
@@ -78,12 +89,10 @@ resolve_target() {
   python3 "$resolver" "$rig"
 }
 
-mapfile -t bead_ids < <(
-  gc bd list --label rollup --label severity:escalate --status open --json \
-    | jq -r '.[] | select((.labels // []) | index("delivered") | not) | .id'
-)
+# TSV lines of "<owning-rig>\t<bead-id>"; owning-rig is empty for city beads.
+mapfile -t rollup_rows < <(list_undelivered_escalates)
 
-if [[ ${#bead_ids[@]} -eq 0 ]]; then
+if [[ ${#rollup_rows[@]} -eq 0 ]]; then
   exit 0
 fi
 
@@ -100,8 +109,10 @@ for var in GC_OVERSIGHT_SESSION_ID GC_OVERSIGHT_PROVIDER \
   fi
 done
 
-for id in "${bead_ids[@]}"; do
-  bead_json=$(gc bd show "$id" --json)
+for row in "${rollup_rows[@]}"; do
+  store_rig="${row%%$'\t'*}"   # store that owns the bead ("" = city)
+  id="${row#*$'\t'}"
+  bead_json=$(gc_bd_scoped "$store_rig" show "$id" --json)
   title=$(jq -r '.[0].title' <<<"$bead_json")
   body=$(jq -r '.[0].description // ""' <<<"$bead_json")
   rig=$(jq -r '.[0].labels[] | select(startswith("rig:")) | sub("^rig:"; "")' <<<"$bead_json" | head -1)
@@ -177,7 +188,7 @@ for id in "${bead_ids[@]}"; do
        --header "X-GC-Request: deliver-rollup" \
        --data "$payload" \
        "$api" >/dev/null; then
-    gc bd update "$id" --add-label delivered
+    gc_bd_scoped "$store_rig" update "$id" --add-label delivered
     echo "delivered $id ($target_label, conv=$conv)"
   else
     echo "delivery failed for $id; will retry next tick" >&2
