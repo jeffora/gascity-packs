@@ -61,7 +61,21 @@ fi
 nudged=0
 failed=0
 for sid in "${session_ids[@]}"; do
-  if gc session nudge "$sid" "Triage tick: read your brief, survey your rig, write rollups." >/dev/null 2>&1; then
+  # --delivery queue, NOT the default wait-idle. wait-idle BLOCKS until the
+  # target session goes idle, so patrolling N busy leads serialises into N
+  # waits of unbounded length — measured ~4s against an idle lead but over two
+  # minutes against working ones. This order's timeout is 30s, so on exactly
+  # the ticks where the leads are busy (the ticks that matter) the patrol was
+  # being killed part-way through, having nudged only some of them.
+  #
+  # This was invisible until the four bugs above were fixed: a patrol that
+  # never nudged anybody always finished instantly. Fixing the nudges is what
+  # made the blocking real.
+  #
+  # queue enqueues and returns (~2s), and the lead picks the nudge up when it
+  # next goes idle — which is precisely the semantics a periodic triage patrol
+  # wants. It must never matter to a patrol whether a lead is mid-tick.
+  if gc session nudge "$sid" --delivery queue "Triage tick: read your brief, survey your rig, write rollups." >/dev/null 2>&1; then
     nudged=$((nudged + 1))
   else
     echo "nudge failed for $sid" >&2
