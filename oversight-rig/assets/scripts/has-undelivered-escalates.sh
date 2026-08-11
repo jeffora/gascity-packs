@@ -5,12 +5,16 @@
 # Exits 0 (fire the order) when there is at least one open rollup bead
 # with severity:escalate that has not yet been labeled delivered.
 # Exits non-zero otherwise.
+#
+# Enumeration lives in lib-rollups.sh because it must cover every rig's store,
+# not just the city's — see the comment there.
 
 set -euo pipefail
 
-count=$(
-  gc bd list --label rollup --label severity:escalate --status open --json \
-    | jq '[.[] | select((.labels // []) | index("delivered") | not)] | length'
-)
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib-rollups.sh
+. "${script_dir}/lib-rollups.sh"
+
+count=$(list_undelivered_escalates | grep -c . || true)
 
 [[ "$count" -gt 0 ]]
